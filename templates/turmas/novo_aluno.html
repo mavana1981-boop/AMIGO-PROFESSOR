@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Novo Aluno{% endblock %}
+{% block page_title %}Novo Aluno — {{ turma.nome }}{% endblock %}
+{% block content %}
+<div style="max-width:520px;">
+  <form method="POST"><div class="card"><div class="card-body">
+    <div class="form-group"><label class="form-label">Nome completo *</label>
+      <input class="form-control" name="nome" required placeholder="Nome do aluno" />
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Matrícula</label>
+        <input class="form-control" name="matricula" placeholder="Nº de matrícula" />
+      </div>
+      <div class="form-group"><label class="form-label">Responsável</label>
+        <input class="form-control" name="responsavel" placeholder="Nome do responsável" />
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Contato do responsável</label>
+      <input class="form-control" name="contato" placeholder="Telefone ou e-mail" />
+    </div>
+    <div class="form-actions" style="border:none;">
+      <button type="submit" class="btn btn-primary">Adicionar Aluno</button>
+      <a href="{{ url_for('turmas.detalhe', id=turma.id) }}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </div></div></form>
+</div>
+{% endblock %}
