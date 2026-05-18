@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Novo Usuário{% endblock %}
+{% block page_title %}Novo Usuário{% endblock %}
+{% block content %}
+<div style="max-width:520px;">
+  <form method="POST">
+    <div class="card"><div class="card-body">
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Nome completo *</label>
+          <input class="form-control" name="nome" required placeholder="Nome do professor" />
+        </div>
+        <div class="form-group"><label class="form-label">E-mail *</label>
+          <input class="form-control" type="email" name="email" required placeholder="email@escola.com" />
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Senha inicial *</label>
+        <input class="form-control" type="text" name="senha" required placeholder="Mínimo 6 caracteres" minlength="6" />
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Escola</label>
+          <input class="form-control" name="escola" placeholder="Nome da escola" />
+        </div>
+        <div class="form-group"><label class="form-label">Disciplina</label>
+          <input class="form-control" name="disciplina" placeholder="Ex.: Matemática" />
+        </div>
+      </div>
+      <div class="form-actions" style="border:none;">
+        <button type="submit" class="btn btn-primary">Criar Usuário</button>
+        <a href="{{ url_for('auth.usuarios') }}" class="btn btn-outline">Cancelar</a>
+      </div>
+    </div></div>
+  </form>
+</div>
+{% endblock %}
