@@ -38,10 +38,14 @@
   </div>
 
   <div class="nav-user">
-    <div class="user-avatar">{{ current_user.nome[0].upper() }}</div>
+    {% if current_user.foto %}
+      <img src="{{ current_user.foto }}" class="user-avatar" style="object-fit:cover;padding:0;" />
+    {% else %}
+      <div class="user-avatar">{{ current_user.nome[0].upper() }}</div>
+    {% endif %}
     <div class="user-info">
       <span class="user-name">{{ current_user.nome.split()[0] }}</span>
-      <span class="user-role">{{ current_user.disciplina or 'Professor(a)' }}</span>
+      <span class="user-role">{{ current_user.cargo or current_user.disciplina or 'Professor(a)' }}</span>
     </div>
   </div>
 
