@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Registrar Frequência{% endblock %}
+{% block page_title %}Frequência — {{ turma.nome }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('frequencia.historico', turma_id=turma.id) }}" class="btn btn-outline btn-sm">Ver Histórico</a>{% endblock %}
+{% block content %}
+<form method="POST">
+  <div class="card" style="margin-bottom:16px;"><div class="card-body" style="padding:16px 20px;">
+    <div class="d-flex align-center gap-3" style="flex-wrap:wrap;">
+      <div class="form-group" style="margin:0;"><label class="form-label">Data</label><input type="date" name="data" class="form-control" value="{{ hoje.isoformat() }}" style="width:auto;" /></div>
+      <div style="flex:1;min-width:200px;">
+        <div class="d-flex gap-2" style="flex-wrap:wrap;">
+          <span class="badge badge-green">● Presente</span><span class="badge badge-red">● Ausente</span>
+          <span class="badge badge-amber">● Atestado</span><span class="badge badge-blue">● Afastamento</span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Salvar Frequência</button>
+    </div>
+  </div></div>
+  <div class="card freq-table">
+    <div class="table-wrapper">
+      <table class="table">
+        <thead><tr><th>#</th><th>Aluno</th><th>Status</th><th>Observação</th></tr></thead>
+        <tbody>
+          {% for aluno in alunos %}{% set f = freq_hoje.get(aluno.id) %}
+          <tr>
+            <td class="text-muted">{{ loop.index }}</td>
+            <td class="fw-700">{{ aluno.nome }}</td>
+            <td>
+              <select name="status_{{ aluno.id }}" class="status-select">
+                <option value="presente" {% if f and f.status=='presente' %}selected{% endif %}>Presente</option>
+                <option value="ausente" {% if f and f.status=='ausente' %}selected{% endif %}>Ausente</option>
+                <option value="atestado" {% if f and f.status=='atestado' %}selected{% endif %}>Atestado</option>
+                <option value="afastamento" {% if f and f.status=='afastamento' %}selected{% endif %}>Afastamento</option>
+              </select>
+            </td>
+            <td><input type="text" name="obs_{{ aluno.id }}" class="form-control" placeholder="Observação" value="{{ f.observacao if f else '' }}" style="font-size:.8125rem;padding:6px 10px;" /></td>
+          </tr>
+          {% else %}<tr><td colspan="4" class="empty-state">Nenhum aluno cadastrado.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
+{% endblock %}

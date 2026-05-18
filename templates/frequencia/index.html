@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Frequência{% endblock %}
+{% block page_title %}Frequência{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h2>Controle de Frequência</h2><p>Selecione uma turma para registrar ou consultar</p></div>
+</div>
+{% if turmas %}
+<div class="turma-cards">
+  {% for t in turmas %}
+  <div class="turma-card" style="cursor:default;">
+    <div class="turma-card-icon">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/></svg>
+    </div>
+    <div class="turma-card-name">{{ t.nome }}</div>
+    <div class="turma-card-meta">{{ t.alunos|length }} aluno(s)</div>
+    <div style="margin-top:10px;display:flex;gap:6px;justify-content:center;">
+      <a href="{{ url_for('frequencia.registrar', turma_id=t.id) }}" class="btn btn-primary btn-sm">Registrar</a>
+      <a href="{{ url_for('frequencia.historico', turma_id=t.id) }}" class="btn btn-outline btn-sm">Histórico</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card"><div class="empty-state" style="padding:48px;"><p style="font-size:1.1rem;font-weight:700;">Nenhuma turma cadastrada</p><p>Cadastre turmas e alunos para registrar frequência.</p></div></div>
+{% endif %}
+{% endblock %}

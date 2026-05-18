@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Planejamento de Aula{% endblock %}
+{% block page_title %}Planejamento{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('planejamento.novo') }}" class="btn btn-accent btn-sm">+ Novo Plano</a>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h2>Planejamento de Aula</h2><p>Gerencie seus planos de aula com filtros de período</p></div>
+</div>
+<div class="filters-bar">
+  {% for f,label in [('semana','Esta Semana'),('mes','Este Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
+  <a href="?filtro={{ f }}" class="filter-chip {% if filtro==f %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+  {% if turmas %}
+  <select onchange="location='?filtro={{ filtro }}&turma_id='+this.value" class="form-control" style="width:auto;padding:6px 12px;font-size:.8125rem;">
+    <option value="">Todas as turmas</option>
+    {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+  </select>
+  {% endif %}
+</div>
+<div class="card">
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr><th>Título</th><th>Turma</th><th>Data</th><th>Bimestre</th><th>Semestre</th><th>Ações</th></tr></thead>
+      <tbody>
+        {% for p in planos %}
+        <tr>
+          <td class="fw-700">{{ p.titulo }}</td>
+          <td>{{ p.turma.nome if p.turma else '—' }}</td>
+          <td>{{ p.data_aula.strftime('%d/%m/%Y') }}</td>
+          <td>{% if p.bimestre %}<span class="badge badge-navy">{{ p.bimestre }}º Bim</span>{% else %}—{% endif %}</td>
+          <td>{% if p.semestre %}<span class="badge badge-blue">{{ p.semestre }}º Sem</span>{% else %}—{% endif %}</td>
+          <td>
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('planejamento.editar', id=p.id) }}" class="btn btn-outline btn-sm">Editar</a>
+              <form method="POST" action="{{ url_for('planejamento.excluir', id=p.id) }}" data-confirm="Excluir este plano de aula?">
+                <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="empty-state">Nenhum plano para o período selecionado.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

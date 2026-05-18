@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{% if plano %}Editar Plano{% else %}Novo Plano{% endif %}{% endblock %}
+{% block page_title %}{% if plano %}Editar Plano{% else %}Novo Plano de Aula{% endif %}{% endblock %}
+{% block content %}
+<div style="max-width:780px;">
+  <form method="POST">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Informações do Plano</span></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Título *</label>
+          <input class="form-control" name="titulo" required placeholder="Ex.: Introdução às frações" value="{{ plano.titulo if plano else '' }}" />
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label class="form-label">Turma</label>
+            <select class="form-control" name="turma_id">
+              <option value="">— Selecionar —</option>
+              {% for t in turmas %}<option value="{{ t.id }}" {% if plano and plano.turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Data da Aula *</label>
+            <input class="form-control" type="date" name="data_aula" required value="{{ plano.data_aula.isoformat() if plano else '' }}" />
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label class="form-label">Bimestre</label>
+            <select class="form-control" name="bimestre">
+              <option value="">—</option>
+              {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if plano and plano.bimestre==b %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Semestre</label>
+            <select class="form-control" name="semestre">
+              <option value="">—</option>
+              <option value="1" {% if plano and plano.semestre==1 %}selected{% endif %}>1º Semestre</option>
+              <option value="2" {% if plano and plano.semestre==2 %}selected{% endif %}>2º Semestre</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Conteúdo / Objeto de Ensino</label>
+          <textarea class="form-control" name="conteudo" rows="3" placeholder="Descreva o conteúdo a ser ensinado...">{{ plano.conteudo if plano else '' }}</textarea>
+        </div>
+        <div class="form-group"><label class="form-label">Objetivos</label>
+          <textarea class="form-control" name="objetivos" rows="3" placeholder="O que os alunos deverão aprender...">{{ plano.objetivos if plano else '' }}</textarea>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label class="form-label">Metodologia</label>
+            <textarea class="form-control" name="metodologia" rows="3" placeholder="Como será ensinado...">{{ plano.metodologia if plano else '' }}</textarea>
+          </div>
+          <div class="form-group"><label class="form-label">Recursos Necessários</label>
+            <textarea class="form-control" name="recursos" rows="3" placeholder="Materiais, tecnologias...">{{ plano.recursos if plano else '' }}</textarea>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Avaliação da Aprendizagem</label>
+          <textarea class="form-control" name="avaliacao_descricao" rows="2" placeholder="Como será avaliado o aprendizado...">{{ plano.avaliacao_descricao if plano else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:16px;border:none;">
+      <button type="submit" class="btn btn-primary">{% if plano %}Salvar Alterações{% else %}Criar Plano{% endif %}</button>
+      <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

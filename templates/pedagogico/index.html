@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Acompanhamento Pedagógico{% endblock %}
+{% block page_title %}Pedagógico{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('pedagogico.novo') }}" class="btn btn-accent btn-sm">+ Novo Registro</a>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h2>Acompanhamento Pedagógico</h2><p>Registro individual de aprendizagem, carências e encaminhamentos</p></div>
+  <div class="d-flex gap-2" style="flex-wrap:wrap;">
+    {% for t,l in [('','Todos'),('aprendizado','Aprendizado'),('carencia','Carência'),('encaminhamento','Encaminhamento')] %}
+    <a href="?tipo={{ t }}" class="filter-chip {% if tipo==t %}active{% endif %}">{{ l }}</a>
+    {% endfor %}
+  </div>
+</div>
+<div class="card"><div class="table-wrapper"><table class="table">
+  <thead><tr><th>Aluno</th><th>Data</th><th>Tipo</th><th>Descrição</th><th>Encaminhamento</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for r in registros %}
+    <tr>
+      <td class="fw-700">{{ r.aluno.nome }}</td>
+      <td>{{ r.data.strftime('%d/%m/%Y') }}</td>
+      <td>
+        {% if r.tipo=='aprendizado' %}<span class="badge badge-green">Aprendizado</span>
+        {% elif r.tipo=='carencia' %}<span class="badge badge-amber">Carência</span>
+        {% elif r.tipo=='encaminhamento' %}<span class="badge badge-blue">Encaminhamento</span>
+        {% else %}<span class="badge badge-navy">{{ r.tipo or '—' }}</span>{% endif %}
+      </td>
+      <td class="text-sm" style="max-width:260px;">{{ r.descricao[:120] }}{% if r.descricao|length > 120 %}…{% endif %}</td>
+      <td class="text-sm">{{ r.encaminhamento or '—' }}</td>
+      <td>
+        {% if r.status=='aberto' %}<span class="badge badge-red">Aberto</span>
+        {% elif r.status=='em andamento' %}<span class="badge badge-amber">Em andamento</span>
+        {% else %}<span class="badge badge-green">Concluído</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="empty-state">Nenhum registro pedagógico encontrado.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Criar Conta — Amigo do Professor{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card" style="max-width:520px;">
+  <div class="auth-brand">
+    <div class="auth-brand-icon">
+      <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
+        <path d="M14 2L26 8V20L14 26L2 20V8L14 2Z" fill="white" opacity="0.3"/>
+        <circle cx="14" cy="14" r="5" fill="white"/>
+      </svg>
+    </div>
+    <div class="auth-brand-name">Amigo do Professor</div>
+    <div class="auth-brand-sub">Crie sua conta gratuita</div>
+  </div>
+
+  <form method="POST" action="{{ url_for('auth.cadastro') }}">
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label class="form-label" for="nome">Nome completo *</label>
+        <input class="form-control" type="text" id="nome" name="nome"
+               placeholder="Seu nome" required autocomplete="name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="email">E-mail *</label>
+        <input class="form-control" type="email" id="email" name="email"
+               placeholder="seu@email.com" required autocomplete="email" />
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label class="form-label" for="senha">Senha *</label>
+        <input class="form-control" type="password" id="senha" name="senha"
+               placeholder="Mínimo 6 caracteres" required autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="confirmar_senha">Confirmar senha *</label>
+        <input class="form-control" type="password" id="confirmar_senha" name="confirmar_senha"
+               placeholder="Repita a senha" required autocomplete="new-password" />
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label class="form-label" for="escola">Escola / Instituição</label>
+        <input class="form-control" type="text" id="escola" name="escola" placeholder="Nome da escola" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="disciplina">Disciplina</label>
+        <input class="form-control" type="text" id="disciplina" name="disciplina" placeholder="Ex.: Matemática" />
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-accent w-100" style="justify-content:center;padding:12px;margin-top:4px;">
+      Criar Minha Conta
+    </button>
+  </form>
+
+  <div class="auth-link">
+    Já tem conta? <a href="{{ url_for('auth.login') }}">Fazer login</a>
+  </div>
+</div>
+{% endblock %}

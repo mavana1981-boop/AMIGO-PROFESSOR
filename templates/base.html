@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a3a5c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>{% block title %}Amigo do Professor{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Literata:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="{% if not current_user.is_authenticated %}auth-page{% endif %}">
+
+{% if current_user.is_authenticated %}
+<!-- ── Sidebar ── -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M14 2L26 8V20L14 26L2 20V8L14 2Z" fill="currentColor" opacity="0.2"/>
+          <path d="M14 6L22 10V18L14 22L6 18V10L14 6Z" fill="currentColor" opacity="0.5"/>
+          <circle cx="14" cy="14" r="4" fill="currentColor"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Amigo do</span>
+        <span class="brand-sub">Professor</span>
+      </div>
+    </div>
+    <button class="sidebar-close" id="sidebarClose" aria-label="Fechar menu">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="nav-user">
+    <div class="user-avatar">{{ current_user.nome[0].upper() }}</div>
+    <div class="user-info">
+      <span class="user-name">{{ current_user.nome.split()[0] }}</span>
+      <span class="user-role">{{ current_user.disciplina or 'Professor(a)' }}</span>
+    </div>
+  </div>
+
+  <ul class="nav-links">
+    <li>
+      <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg>
+        Painel
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('frequencia.index') }}" class="nav-link {% if 'frequencia' in request.endpoint %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12a9 9 0 1018 0A9 9 0 003 12z" stroke="currentColor" stroke-width="2"/></svg>
+        Frequência
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('planejamento.index') }}" class="nav-link {% if 'planejamento' in request.endpoint %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="2"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="2"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Planejamento
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('avaliacoes.index') }}" class="nav-link {% if 'avaliacoes' in request.endpoint %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="2"/><path d="M9 3h6a1 1 0 011 1v1H8V4a1 1 0 011-1z" stroke="currentColor" stroke-width="2"/><path d="M8 13l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Avaliações
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('pedagogico.index') }}" class="nav-link {% if 'pedagogico' in request.endpoint %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Pedagógico
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('calendario.index') }}" class="nav-link {% if 'calendario' in request.endpoint %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Calendário
+      </a>
+    </li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <a href="{{ url_for('auth.logout') }}" class="nav-link logout-link">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sair
+    </a>
+  </div>
+</nav>
+
+<!-- ── Overlay ── -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- ── Main ── -->
+<div class="main-wrapper">
+  <header class="top-bar">
+    <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+    <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+  </header>
+
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">
+            <span>{{ msg }}</span>
+            <button onclick="this.parentElement.remove()" class="flash-close">×</button>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% else %}
+<!-- Auth pages -->
+<main class="auth-wrapper">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container auth-flash">
+        {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}<button onclick="this.parentElement.remove()" class="flash-close">×</button></div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block auth_content %}{% endblock %}
+</main>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

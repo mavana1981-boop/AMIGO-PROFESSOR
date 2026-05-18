@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Painel — Amigo do Professor{% endblock %}
+{% block page_title %}Painel{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('planejamento.novo') }}" class="btn btn-accent btn-sm">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+    Novo Plano
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>Olá, {{ current_user.nome.split()[0] }}! 👋</h2>
+    <p>{{ hoje.strftime('%A, %d de %B de %Y') | title }}</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-blue">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ stats.total_alunos }}</div>
+      <div class="stat-label">Alunos no total</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-amber">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ stats.total_turmas }}</div>
+      <div class="stat-label">Turmas ativas</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-green">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="2"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="2"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ stats.planos_semana }}</div>
+      <div class="stat-label">Planos esta semana</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-rose">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ proximos_eventos | length }}</div>
+      <div class="stat-label">Eventos futuros</div>
+    </div>
+  </div>
+</div>
+
+<!-- Panels -->
+<div class="dashboard-grid">
+
+  <!-- Próximos eventos -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📅 Próximos Eventos</span>
+      <a href="{{ url_for('calendario.novo') }}" class="btn btn-outline btn-sm">+ Adicionar</a>
+    </div>
+    <div class="panel-list">
+      {% if proximos_eventos %}
+        {% for ev in proximos_eventos %}
+        <div class="panel-item">
+          <div class="panel-item-dot" style="background:{{ ev.cor }};"></div>
+          <div class="panel-item-body">
+            <div class="panel-item-title">{{ ev.titulo }}</div>
+            <div class="panel-item-sub">{{ ev.tipo or 'Evento' }}</div>
+          </div>
+          <div class="panel-item-right">{{ ev.data_inicio.strftime('%d/%m') }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">Nenhum evento próximo. <a href="{{ url_for('calendario.novo') }}">Adicione um!</a></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Avaliações próximas -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📝 Avaliações Próximas</span>
+      <a href="{{ url_for('avaliacoes.nova') }}" class="btn btn-outline btn-sm">+ Nova</a>
+    </div>
+    <div class="panel-list">
+      {% if avaliacoes_pendentes %}
+        {% for av in avaliacoes_pendentes %}
+        <div class="panel-item">
+          <div class="panel-item-dot" style="background:var(--amber-500);"></div>
+          <div class="panel-item-body">
+            <div class="panel-item-title">{{ av.titulo }}</div>
+            <div class="panel-item-sub">{{ av.tipo or 'Avaliação' }} — {{ av.turma.nome }}</div>
+          </div>
+          <div class="panel-item-right">{{ av.data_aplicacao.strftime('%d/%m') if av.data_aplicacao else '—' }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">Nenhuma avaliação agendada.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Minhas turmas -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="card-header">
+      <span class="card-title">🏫 Minhas Turmas</span>
+    </div>
+    <div class="card-body">
+      {% if turmas %}
+      <div class="turma-cards">
+        {% for t in turmas %}
+        <a href="{{ url_for('frequencia.registrar', turma_id=t.id) }}" class="turma-card">
+          <div class="turma-card-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/></svg>
+          </div>
+          <div class="turma-card-name">{{ t.nome }}</div>
+          <div class="turma-card-meta">{{ t.alunos | length }} aluno(s) · {{ t.ano }}</div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:40px 0;">
+        Você ainda não cadastrou turmas.<br>
+        <a href="#" style="color:var(--navy-700);font-weight:600;">Vá em Frequência para criar uma turma</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Lançar Notas{% endblock %}
+{% block page_title %}Notas — {{ avaliacao.titulo }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>{{ avaliacao.titulo }}</h2>
+    <p>{{ avaliacao.turma.nome if avaliacao.turma else '' }} · Valor: {{ avaliacao.valor_total }} pontos</p>
+  </div>
+</div>
+<form method="POST">
+  <div class="card"><div class="table-wrapper"><table class="table">
+    <thead><tr><th>#</th><th>Aluno</th><th>Nota (0–{{ avaliacao.valor_total }})</th><th>Comentário</th></tr></thead>
+    <tbody>
+      {% for aluno in alunos %}
+      {% set n = notas_map.get(aluno.id) %}
+      <tr>
+        <td class="text-muted">{{ loop.index }}</td>
+        <td class="fw-700">{{ aluno.nome }}</td>
+        <td><input type="number" name="nota_{{ aluno.id }}" class="form-control nota-input"
+               step="0.1" min="0" max="{{ avaliacao.valor_total }}"
+               value="{{ n.nota if n else '' }}" data-max="{{ avaliacao.valor_total }}"
+               style="width:100px;" /></td>
+        <td><input type="text" name="comentario_{{ aluno.id }}" class="form-control"
+               placeholder="Observação" value="{{ n.comentario if n else '' }}"
+               style="font-size:.8125rem;padding:6px 10px;" /></td>
+      </tr>
+      {% else %}<tr><td colspan="4" class="empty-state">Nenhum aluno na turma.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div>
+  <div style="margin-top:16px;display:flex;gap:12px;">
+    <button type="submit" class="btn btn-primary">Salvar Notas</button>
+    <a href="{{ url_for('avaliacoes.index') }}" class="btn btn-outline">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

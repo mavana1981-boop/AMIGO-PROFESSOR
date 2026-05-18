@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Histórico{% endblock %}
+{% block page_title %}Histórico — {{ turma.nome }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('frequencia.registrar', turma_id=turma.id) }}" class="btn btn-primary btn-sm">+ Registrar Hoje</a>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h2>Histórico de Frequência</h2><p>{{ turma.nome }}</p></div>
+  <form class="d-flex gap-2">
+    <select name="mes" class="form-control" style="width:auto;">
+      {% for m in range(1,13) %}<option value="{{ m }}" {% if m==mes %}selected{% endif %}>{{ ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1] }}</option>{% endfor %}
+    </select>
+    <select name="ano" class="form-control" style="width:auto;">
+      {% for y in range(2024,2027) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-outline">Filtrar</button>
+  </form>
+</div>
+<div class="card"><div class="table-wrapper"><table class="table">
+  <thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Observação</th></tr></thead>
+  <tbody>
+    {% for f in frequencias|sort(attribute='data',reverse=True) %}
+    <tr>
+      <td class="fw-700">{{ f.aluno.nome }}</td>
+      <td>{{ f.data.strftime('%d/%m/%Y') }}</td>
+      <td>{% if f.status=='presente' %}<span class="badge badge-green">Presente</span>{% elif f.status=='ausente' %}<span class="badge badge-red">Ausente</span>{% elif f.status=='atestado' %}<span class="badge badge-amber">Atestado</span>{% else %}<span class="badge badge-blue">Afastamento</span>{% endif %}</td>
+      <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="empty-state">Nenhum registro no período.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Avaliações{% endblock %}
+{% block page_title %}Avaliações{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('avaliacoes.nova') }}" class="btn btn-accent btn-sm">+ Nova Avaliação</a>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h2>Avaliações</h2><p>Gerencie provas, trabalhos e notas</p></div>
+  {% if turmas %}
+  <select onchange="location='?turma_id='+this.value" class="form-control" style="width:auto;">
+    <option value="">Todas as turmas</option>
+    {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+  </select>
+  {% endif %}
+</div>
+<div class="card"><div class="table-wrapper"><table class="table">
+  <thead><tr><th>Título</th><th>Tipo</th><th>Turma</th><th>Data</th><th>Valor</th><th>Bimestre</th><th>Ações</th></tr></thead>
+  <tbody>
+    {% for av in avaliacoes %}
+    <tr>
+      <td class="fw-700">{{ av.titulo }}</td>
+      <td><span class="badge badge-navy">{{ av.tipo or '—' }}</span></td>
+      <td>{{ av.turma.nome if av.turma else '—' }}</td>
+      <td>{{ av.data_aplicacao.strftime('%d/%m/%Y') if av.data_aplicacao else '—' }}</td>
+      <td>{{ av.valor_total }}</td>
+      <td>{% if av.bimestre %}<span class="badge badge-blue">{{ av.bimestre }}º Bim</span>{% else %}—{% endif %}</td>
+      <td><div class="d-flex gap-2">
+        <a href="{{ url_for('avaliacoes.notas', id=av.id) }}" class="btn btn-primary btn-sm">Notas</a>
+      </div></td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="empty-state">Nenhuma avaliação cadastrada.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

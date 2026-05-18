@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Calendário Escolar{% endblock %}
+{% block page_title %}Calendário{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('calendario.novo') }}" class="btn btn-accent btn-sm">+ Novo Evento</a>{% endblock %}
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet" />
+{% endblock %}
+{% block content %}
+<div class="calendar-grid">
+  <div><div id="fullcalendar"></div></div>
+  <div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Próximos Eventos</span></div>
+      <div class="panel-list">
+        {% set futuros = eventos | selectattr('data_inicio', 'ge', hoje) | list if hoje is defined else eventos %}
+        {% for ev in eventos[:10] %}
+        <div class="panel-item">
+          <div class="panel-item-dot" style="background:{{ ev.cor }};"></div>
+          <div class="panel-item-body">
+            <div class="panel-item-title">{{ ev.titulo }}</div>
+            <div class="panel-item-sub">{{ ev.tipo or 'Evento' }}{% if ev.descricao %} · {{ ev.descricao[:40] }}{% endif %}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <span class="panel-item-right">{{ ev.data_inicio.strftime('%d/%m') }}</span>
+            <form method="POST" action="{{ url_for('calendario.excluir', id=ev.id) }}" data-confirm="Remover este evento?">
+              <button type="submit" style="font-size:.7rem;color:var(--rose-500);font-weight:600;padding:2px 6px;">✕</button>
+            </form>
+          </div>
+        </div>
+        {% else %}<div class="empty-state">Nenhum evento cadastrado.</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><span class="card-title">Legenda</span></div>
+      <div class="card-body">
+        {% for tipo, cor in [('Feriado','#e05c5c'),('Prova','#f59e0b'),('Reunião','#3B82F6'),('Recesso','#9ca3af'),('Evento','#4d7c5f')] %}
+        <div class="d-flex align-center gap-2" style="margin-bottom:8px;font-size:.85rem;">
+          <div style="width:12px;height:12px;border-radius:3px;background:{{ cor }};flex-shrink:0;"></div>
+          {{ tipo }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cal = new FullCalendar.Calendar(document.getElementById('fullcalendar'), {
+    initialView: 'dayGridMonth',
+    locale: 'pt-br',
+    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listMonth' },
+    events: '{{ url_for("calendario.api_eventos") }}',
+    height: 'auto',
+    eventClick: function(info) {
+      alert(info.event.title + '\n' + (info.event.extendedProps.descricao || ''));
+    }
+  });
+  cal.render();
+});
+</script>
+{% endblock %}

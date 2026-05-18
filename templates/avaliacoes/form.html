@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Nova Avaliação{% endblock %}
+{% block page_title %}Nova Avaliação{% endblock %}
+{% block content %}
+<div style="max-width:620px;">
+  <form method="POST"><div class="card"><div class="card-body">
+    <div class="form-group"><label class="form-label">Título *</label>
+      <input class="form-control" name="titulo" required placeholder="Ex.: Prova de Matemática – 1º Bimestre" />
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-control" name="tipo">
+          <option value="">— Selecionar —</option>
+          {% for t in ['Prova','Trabalho','Seminário','Atividade','Projeto','Simulado'] %}
+          <option>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Turma</label>
+        <select class="form-control" name="turma_id">
+          <option value="">— Selecionar —</option>
+          {% for t in turmas %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Data de Aplicação</label>
+        <input class="form-control" type="date" name="data_aplicacao" />
+      </div>
+      <div class="form-group"><label class="form-label">Valor Total</label>
+        <input class="form-control" type="number" name="valor_total" step="0.1" value="10" />
+      </div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Bimestre</label>
+        <select class="form-control" name="bimestre">
+          <option value="">—</option>
+          {% for b in [1,2,3,4] %}<option value="{{ b }}">{{ b }}º Bimestre</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Descrição / Enunciado</label>
+      <textarea class="form-control" name="descricao" rows="3" placeholder="Descreva a avaliação..."></textarea>
+    </div>
+    <div class="form-group"><label class="form-label">Gabarito / Critérios</label>
+      <textarea class="form-control" name="gabarito" rows="3" placeholder="Gabarito ou critérios de correção..."></textarea>
+    </div>
+    <div class="form-actions" style="border:none;">
+      <button type="submit" class="btn btn-primary">Criar Avaliação</button>
+      <a href="{{ url_for('avaliacoes.index') }}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </div></div></form>
+</div>
+{% endblock %}
