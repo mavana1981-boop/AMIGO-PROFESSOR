@@ -38,6 +38,7 @@ def create_app():
     from routes.avaliacoes import aval_bp
     from routes.pedagogico import ped_bp
     from routes.calendario import cal_bp
+    from routes.turmas import turmas_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -46,6 +47,7 @@ def create_app():
     app.register_blueprint(aval_bp)
     app.register_blueprint(ped_bp)
     app.register_blueprint(cal_bp)
+    app.register_blueprint(turmas_bp)
 
     # Create all tables
     with app.app_context():
