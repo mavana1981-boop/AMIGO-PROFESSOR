@@ -17,13 +17,12 @@
   <h2 class="auth-title">Bem-vindo(a) de volta</h2>
   <p class="auth-sub">Faça login para acessar sua conta</p>
 
-  <!-- Biometric button (shown only on mobile with platform authenticator) -->
   <button class="biometric-btn hidden" id="biometricBtn" type="button">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9v1c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2V9c0-3.87-3.13-7-7-7zm0 2c2.76 0 5 2.24 5 5v1H7V9c0-2.76 2.24-5 5-5zm0 8c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" fill="currentColor"/></svg>
     Entrar com Biometria
   </button>
 
-  <div class="auth-divider" id="bioDivider"><span>ou com e-mail</span></div>
+  <div class="auth-divider" id="bioDivider" style="display:none;"><span>ou com e-mail</span></div>
 
   <form method="POST" action="{{ url_for('auth.login') }}">
     <div class="form-group">
@@ -36,33 +35,31 @@
       <input class="form-control" type="password" id="senha" name="senha"
              placeholder="••••••••" required autocomplete="current-password" />
     </div>
-
-    <div class="d-flex align-center" style="margin-bottom:20px;justify-content:space-between;font-size:.85rem;">
-      <label class="d-flex align-center gap-2" style="cursor:pointer;color:var(--neutral-600);">
+    <div class="d-flex align-center" style="margin-bottom:20px;">
+      <label class="d-flex align-center gap-2" style="cursor:pointer;color:var(--neutral-600);font-size:.85rem;">
         <input type="checkbox" name="lembrar" /> Lembrar de mim
       </label>
     </div>
-
     <button type="submit" class="btn btn-primary w-100" style="justify-content:center;padding:12px;">
       Entrar
     </button>
   </form>
 
-  <div class="auth-link">
-    Ainda não tem conta? <a href="{{ url_for('auth.cadastro') }}">Cadastre-se grátis</a>
-  </div>
+  <p style="text-align:center;margin-top:20px;font-size:.8rem;color:var(--neutral-400);">
+    Acesso restrito. Solicite seu cadastro ao administrador.
+  </p>
 </div>
 
 <script>
-// Hide biometric divider if button is hidden
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('biometricBtn');
   const div = document.getElementById('bioDivider');
-  const obs = new MutationObserver(() => {
-    div.style.display = btn.classList.contains('hidden') ? 'none' : '';
-  });
-  obs.observe(btn, { attributes: true, attributeFilter: ['class'] });
-  div.style.display = 'none'; // hide initially
+  if (btn) {
+    const obs = new MutationObserver(() => {
+      div.style.display = btn.classList.contains('hidden') ? 'none' : '';
+    });
+    obs.observe(btn, { attributes: true, attributeFilter: ['class'] });
+  }
 });
 </script>
 {% endblock %}
