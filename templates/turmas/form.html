@@ -1,1 +1,24 @@
-
+{% extends "base.html" %}
+{% block title %}{% if turma %}Editar Turma{% else %}Nova Turma{% endif %}{% endblock %}
+{% block page_title %}{% if turma %}Editar Turma{% else %}Nova Turma{% endif %}{% endblock %}
+{% block content %}
+<div style="max-width:480px;">
+  <form method="POST"><div class="card"><div class="card-body">
+    <div class="form-group"><label class="form-label">Nome da Turma *</label>
+      <input class="form-control" name="nome" required placeholder="Ex.: 3º Ano A, Turma 101..." value="{{ turma.nome if turma else '' }}" />
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Série / Nível</label>
+        <input class="form-control" name="serie" placeholder="Ex.: 3º Ano, 8º Série..." value="{{ turma.serie if turma else '' }}" />
+      </div>
+      <div class="form-group"><label class="form-label">Ano letivo</label>
+        <input class="form-control" type="number" name="ano" value="{{ turma.ano if turma else 2026 }}" min="2020" max="2030" />
+      </div>
+    </div>
+    <div class="form-actions" style="border:none;">
+      <button type="submit" class="btn btn-primary">{% if turma %}Salvar{% else %}Criar Turma{% endif %}</button>
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </div></div></form>
+</div>
+{% endblock %}
