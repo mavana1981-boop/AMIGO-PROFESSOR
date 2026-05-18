@@ -6,7 +6,7 @@ import os
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@amigodoprofessor.com")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "mavana1981@gmail.com")
 
 
 @login_manager.user_loader
