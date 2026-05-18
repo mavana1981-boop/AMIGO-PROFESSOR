@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Gerenciar Usuários{% endblock %}
+{% block title %}Usuários{% endblock %}
 {% block page_title %}Usuários{% endblock %}
 {% block topbar_actions %}
   <a href="{{ url_for('auth.novo_usuario') }}" class="btn btn-accent btn-sm">+ Novo Usuário</a>
@@ -8,46 +8,62 @@
 <div class="page-header">
   <div class="page-header-left">
     <h2>Gerenciamento de Usuários</h2>
-    <p>Apenas o administrador pode criar e remover acessos</p>
+    <p>Apenas o administrador pode criar e gerenciar acessos</p>
   </div>
 </div>
 <div class="card">
   <div class="table-wrapper">
     <table class="table">
       <thead>
-        <tr><th>Nome</th><th>E-mail</th><th>Escola</th><th>Disciplina</th><th>Cadastrado em</th><th>Ações</th></tr>
+        <tr>
+          <th>Foto</th>
+          <th>Nome</th>
+          <th>E-mail</th>
+          <th>Regional</th>
+          <th>Escola</th>
+          <th>Disciplina</th>
+          <th>Cargo</th>
+          <th>Cadastro</th>
+          <th>Ações</th>
+        </tr>
       </thead>
       <tbody>
         {% for p in professores %}
         <tr>
+          <td>
+            {% if p.foto %}
+              <img src="{{ p.foto }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--neutral-200);" />
+            {% else %}
+              <div style="width:36px;height:36px;border-radius:50%;background:var(--navy-100);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--navy-700);font-size:.875rem;">{{ p.nome[0].upper() }}</div>
+            {% endif %}
+          </td>
           <td class="fw-700">
             {{ p.nome }}
-            {% if p.email == current_user.email %}<span class="badge badge-amber" style="margin-left:6px;">Você</span>{% endif %}
+            {% if p.email == current_user.email %}
+              <span class="badge badge-amber" style="margin-left:6px;">Admin</span>
+            {% endif %}
           </td>
           <td class="text-sm">{{ p.email }}</td>
+          <td class="text-sm text-muted">{{ p.regional or '—' }}</td>
           <td class="text-sm text-muted">{{ p.escola or '—' }}</td>
           <td class="text-sm text-muted">{{ p.disciplina or '—' }}</td>
+          <td class="text-sm text-muted">{{ p.cargo or '—' }}</td>
           <td class="text-sm text-muted">{{ p.criado_em.strftime('%d/%m/%Y') }}</td>
           <td>
-            {% if p.email != current_user.email %}
             <div class="d-flex gap-2">
-              <!-- Resetar senha -->
-              <form method="POST" action="{{ url_for('auth.resetar_senha', id=p.id) }}" style="display:flex;gap:6px;align-items:center;">
-                <input type="text" name="nova_senha" class="form-control" placeholder="Nova senha" style="width:120px;padding:5px 8px;font-size:.8rem;" required minlength="6" />
-                <button type="submit" class="btn btn-outline btn-sm">Resetar</button>
-              </form>
-              <!-- Excluir -->
+              <a href="{{ url_for('auth.editar_usuario', id=p.id) }}" class="btn btn-outline btn-sm">Editar</a>
+              {% if p.email != current_user.email %}
               <form method="POST" action="{{ url_for('auth.excluir_usuario', id=p.id) }}" data-confirm="Excluir o usuário {{ p.nome }}?">
                 <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
               </form>
+              {% endif %}
             </div>
-            {% else %}
-            <span class="text-muted text-sm">Administrador</span>
-            {% endif %}
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="empty-state">Nenhum usuário cadastrado além do admin.</td></tr>
+        <tr>
+          <td colspan="9" class="empty-state">Nenhum usuário cadastrado.</td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
