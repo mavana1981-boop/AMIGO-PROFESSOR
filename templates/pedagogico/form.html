@@ -1,44 +1,58 @@
 {% extends "base.html" %}
-{% block title %}Novo Registro Pedagógico{% endblock %}
-{% block page_title %}Novo Registro Pedagógico{% endblock %}
+{% block title %}{% if reg %}Editar Registro{% else %}Novo Registro Pedagógico{% endif %}{% endblock %}
+{% block page_title %}{% if reg %}Editar Registro{% else %}Novo Registro Pedagógico{% endif %}{% endblock %}
 {% block content %}
-<div style="max-width:620px;">
+<div style="max-width:640px;">
   <form method="POST"><div class="card"><div class="card-body">
+
     <div class="form-row form-row-2">
       <div class="form-group"><label class="form-label">Aluno *</label>
         <select class="form-control" name="aluno_id" required>
           <option value="">— Selecionar aluno —</option>
-          {% for a in alunos %}<option value="{{ a.id }}" {% if aluno_id==a.id %}selected{% endif %}>{{ a.nome }} ({{ a.turma.nome }})</option>{% endfor %}
+          {% for a in alunos %}
+          <option value="{{ a.id }}"
+            {% if (reg and reg.aluno_id == a.id) or (not reg and aluno_id == a.id) %}selected{% endif %}>
+            {{ a.nome }} ({{ a.turma.nome }})
+          </option>
+          {% endfor %}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Data *</label>
-        <input class="form-control" type="date" name="data" required />
+        <input class="form-control" type="date" name="data" required
+               value="{{ reg.data.isoformat() if reg else '' }}" />
       </div>
     </div>
+
     <div class="form-row form-row-2">
       <div class="form-group"><label class="form-label">Tipo de Registro</label>
         <select class="form-control" name="tipo">
-          <option value="aprendizado">Aprendizado</option>
-          <option value="carencia">Carência / Dificuldade</option>
-          <option value="encaminhamento">Encaminhamento</option>
+          <option value="aprendizado" {% if reg and reg.tipo=='aprendizado' %}selected{% endif %}>Aprendizado</option>
+          <option value="carencia" {% if reg and reg.tipo=='carencia' %}selected{% endif %}>Carência / Dificuldade</option>
+          <option value="encaminhamento" {% if reg and reg.tipo=='encaminhamento' %}selected{% endif %}>Encaminhamento</option>
         </select>
       </div>
       <div class="form-group"><label class="form-label">Status</label>
         <select class="form-control" name="status">
-          <option value="aberto">Aberto</option>
-          <option value="em andamento">Em andamento</option>
-          <option value="concluído">Concluído</option>
+          <option value="aberto" {% if not reg or reg.status=='aberto' %}selected{% endif %}>Aberto</option>
+          <option value="em andamento" {% if reg and reg.status=='em andamento' %}selected{% endif %}>Em andamento</option>
+          <option value="concluído" {% if reg and reg.status=='concluído' %}selected{% endif %}>Concluído</option>
         </select>
       </div>
     </div>
+
     <div class="form-group"><label class="form-label">Descrição *</label>
-      <textarea class="form-control" name="descricao" required rows="4" placeholder="Descreva a situação pedagógica do aluno..."></textarea>
+      <textarea class="form-control" name="descricao" required rows="5"
+                placeholder="Descreva a situação pedagógica do aluno...">{{ reg.descricao if reg else '' }}</textarea>
     </div>
+
     <div class="form-group"><label class="form-label">Encaminhamento</label>
-      <input class="form-control" name="encaminhamento" placeholder="Ex.: Psicólogo, Fonoaudiólogo, Reforço escolar..." />
+      <input class="form-control" name="encaminhamento"
+             placeholder="Ex.: Psicólogo, Fonoaudiólogo, Reforço escolar..."
+             value="{{ reg.encaminhamento if reg else '' }}" />
     </div>
+
     <div class="form-actions" style="border:none;">
-      <button type="submit" class="btn btn-primary">Salvar Registro</button>
+      <button type="submit" class="btn btn-primary">{% if reg %}Salvar{% else %}Salvar Registro{% endif %}</button>
       <a href="{{ url_for('pedagogico.index') }}" class="btn btn-outline">Cancelar</a>
     </div>
   </div></div></form>
