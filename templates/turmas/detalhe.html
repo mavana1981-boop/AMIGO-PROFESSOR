@@ -9,24 +9,23 @@
 <div class="page-header">
   <div class="page-header-left">
     <h2>{{ turma.nome }}</h2>
-    <p>{{ turma.serie or '' }} · Ano letivo {{ turma.ano }} · {{ alunos|length }} aluno(s)</p>
+    <p>{{ turma.serie or '' }} · {{ turma.ano }} · {{ alunos|length }} aluno(s)</p>
   </div>
   <div class="d-flex gap-2">
     <a href="{{ url_for('frequencia.registrar', turma_id=turma.id) }}" class="btn btn-outline btn-sm">📋 Frequência</a>
-    <form method="POST" action="{{ url_for('turmas.excluir', id=turma.id) }}" data-confirm="Excluir a turma {{ turma.nome }} e todos seus dados?">
+    <form method="POST" action="{{ url_for('turmas.excluir', id=turma.id) }}" data-confirm="Excluir a turma {{ turma.nome }}?">
       <button type="submit" class="btn btn-danger btn-sm">Excluir Turma</button>
     </form>
   </div>
 </div>
-
 <div class="card">
   <div class="card-header">
     <span class="card-title">👥 Alunos</span>
-    <a href="{{ url_for('turmas.novo_aluno', turma_id=turma.id) }}" class="btn btn-outline btn-sm">+ Adicionar Aluno</a>
+    <a href="{{ url_for('turmas.novo_aluno', turma_id=turma.id) }}" class="btn btn-outline btn-sm">+ Adicionar</a>
   </div>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>#</th><th>Nome</th><th>Matrícula</th><th>Responsável</th><th>Contato</th><th>Ações</th></tr></thead>
+      <thead><tr><th>#</th><th>Nome</th><th>Matrícula</th><th>Responsável</th><th>Contato</th><th>Defic./TEA</th><th>SuperAção</th><th>Ações</th></tr></thead>
       <tbody>
         {% for a in alunos %}
         <tr>
@@ -35,14 +34,20 @@
           <td class="text-sm text-muted">{{ a.matricula or '—' }}</td>
           <td class="text-sm">{{ a.responsavel or '—' }}</td>
           <td class="text-sm">{{ a.contato or '—' }}</td>
+          <td>{% if a.apresenta_deficiencia %}<span class="badge badge-amber">Sim</span>{% else %}<span class="badge badge-green">Não</span>{% endif %}</td>
+          <td>{% if a.programa_superacao %}<span class="badge badge-blue">Sim</span>{% else %}—{% endif %}</td>
           <td>
-            <form method="POST" action="{{ url_for('turmas.excluir_aluno', aluno_id=a.id) }}" data-confirm="Remover {{ a.nome }}?">
-              <button type="submit" class="btn btn-danger btn-sm">Remover</button>
-            </form>
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('turmas.editar_aluno', aluno_id=a.id) }}" class="btn btn-outline btn-sm">Editar</a>
+              <a href="{{ url_for('rav.novo') }}?aluno_id={{ a.id }}" class="btn btn-primary btn-sm">RAv</a>
+              <form method="POST" action="{{ url_for('turmas.excluir_aluno', aluno_id=a.id) }}" data-confirm="Remover {{ a.nome }}?">
+                <button type="submit" class="btn btn-danger btn-sm">✕</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="empty-state">Nenhum aluno cadastrado. <a href="{{ url_for('turmas.novo_aluno', turma_id=turma.id) }}">Adicione o primeiro!</a></td></tr>
+        <tr><td colspan="8" class="empty-state">Nenhum aluno. <a href="{{ url_for('turmas.novo_aluno', turma_id=turma.id) }}">Adicione!</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
