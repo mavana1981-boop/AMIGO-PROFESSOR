@@ -1,27 +1,121 @@
 {% extends "base.html" %}
-{% block title %}Novo Aluno{% endblock %}
-{% block page_title %}Novo Aluno — {{ turma.nome }}{% endblock %}
+{% block title %}{% if aluno %}Editar Aluno{% else %}Novo Aluno{% endif %}{% endblock %}
+{% block page_title %}{% if aluno %}Editar — {{ aluno.nome }}{% else %}Novo Aluno — {{ turma.nome }}{% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+.rav-bloco { background:var(--navy-50); border:1.5px solid var(--navy-100); border-radius:10px; padding:16px; margin-top:8px; }
+.rav-bloco-title { font-size:.75rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--navy-700); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.radio-group { display:flex; gap:12px; flex-wrap:wrap; }
+.radio-item { display:flex; align-items:center; gap:6px; font-size:.875rem; color:var(--neutral-700); cursor:pointer; }
+.radio-item input { accent-color:var(--navy-700); }
+</style>
+{% endblock %}
 {% block content %}
-<div style="max-width:520px;">
+<div style="max-width:640px;">
   <form method="POST"><div class="card"><div class="card-body">
+
+    <div style="font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--neutral-500);margin-bottom:14px;">Dados Pessoais</div>
+
     <div class="form-group"><label class="form-label">Nome completo *</label>
-      <input class="form-control" name="nome" required placeholder="Nome do aluno" />
+      <input class="form-control" name="nome" required placeholder="Nome do aluno"
+             value="{{ aluno.nome if aluno else '' }}" />
     </div>
     <div class="form-row form-row-2">
       <div class="form-group"><label class="form-label">Matrícula</label>
-        <input class="form-control" name="matricula" placeholder="Nº de matrícula" />
+        <input class="form-control" name="matricula" placeholder="Nº de matrícula"
+               value="{{ aluno.matricula if aluno else '' }}" />
       </div>
       <div class="form-group"><label class="form-label">Responsável</label>
-        <input class="form-control" name="responsavel" placeholder="Nome do responsável" />
+        <input class="form-control" name="responsavel" placeholder="Nome do responsável"
+               value="{{ aluno.responsavel if aluno else '' }}" />
       </div>
     </div>
     <div class="form-group"><label class="form-label">Contato do responsável</label>
-      <input class="form-control" name="contato" placeholder="Telefone ou e-mail" />
+      <input class="form-control" name="contato" placeholder="Telefone ou e-mail"
+             value="{{ aluno.contato if aluno else '' }}" />
     </div>
-    <div class="form-actions" style="border:none;">
-      <button type="submit" class="btn btn-primary">Adicionar Aluno</button>
+
+    <!-- RAv — Bloco A -->
+    <div class="rav-bloco">
+      <div class="rav-bloco-title">
+        <span style="background:var(--navy-900);color:white;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.7rem;">A</span>
+        Dados para o RAv — Bloco A
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Apresenta Deficiência ou TEA?</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="apresenta_deficiencia" value="nao" {% if not aluno or not aluno.apresenta_deficiencia %}checked{% endif %} /> Não</label>
+            <label class="radio-item"><input type="radio" name="apresenta_deficiencia" value="sim" {% if aluno and aluno.apresenta_deficiencia %}checked{% endif %} onchange="toggleDeficiencia(this)" /> Sim</label>
+          </div>
+        </div>
+        <div class="form-group" id="campoDeficiencia" style="{{ '' if aluno and aluno.apresenta_deficiencia else 'display:none;' }}">
+          <label class="form-label">Qual deficiência / TEA?</label>
+          <input class="form-control" name="tipo_deficiencia" placeholder="Ex.: TEA, Defic. Intelectual..."
+                 value="{{ aluno.tipo_deficiencia if aluno else '' }}" />
+        </div>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Houve adequação curricular?</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="adequacao_curricular" value="nao" {% if not aluno or not aluno.adequacao_curricular %}checked{% endif %} /> Não</label>
+            <label class="radio-item"><input type="radio" name="adequacao_curricular" value="sim" {% if aluno and aluno.adequacao_curricular %}checked{% endif %} /> Sim</label>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Indicado para temporalidade?</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="indicado_temporalidade" value="nao" {% if not aluno or not aluno.indicado_temporalidade %}checked{% endif %} /> Não</label>
+            <label class="radio-item"><input type="radio" name="indicado_temporalidade" value="sim" {% if aluno and aluno.indicado_temporalidade %}checked{% endif %} /> Sim</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Atendido em Sala de Recursos?</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="sala_recursos" value="nao" {% if not aluno or not aluno.sala_recursos %}checked{% endif %} /> Não</label>
+            <label class="radio-item"><input type="radio" name="sala_recursos" value="sim" {% if aluno and aluno.sala_recursos %}checked{% endif %} /> Sim</label>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Programa SuperAção (i-Educar)?</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="programa_superacao" value="nao" {% if not aluno or not aluno.programa_superacao %}checked{% endif %} /> Não</label>
+            <label class="radio-item"><input type="radio" name="programa_superacao" value="sim" {% if aluno and aluno.programa_superacao %}checked{% endif %} /> Sim</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group"><label class="form-label">Tipo de Atendimento</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="tipo_atendimento" value="" {% if not aluno or not aluno.tipo_atendimento %}checked{% endif %} /> Nenhum</label>
+          <label class="radio-item"><input type="radio" name="tipo_atendimento" value="classe_comum" {% if aluno and aluno.tipo_atendimento=='classe_comum' %}checked{% endif %} /> Classe Comum c/ atend. personalizado</label>
+          <label class="radio-item"><input type="radio" name="tipo_atendimento" value="superacao" {% if aluno and aluno.tipo_atendimento=='superacao' %}checked{% endif %} /> Turma SuperAção</label>
+          <label class="radio-item"><input type="radio" name="tipo_atendimento" value="superacao_reduzida" {% if aluno and aluno.tipo_atendimento=='superacao_reduzida' %}checked{% endif %} /> Turma SuperAção Reduzida</label>
+        </div>
+      </div>
+
+      <div class="form-group"><label class="form-label">Organização Curricular do Programa SuperAção foi aplicada?</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="org_curricular_superacao" value="nao" {% if not aluno or aluno.org_curricular_superacao == 'nao' %}checked{% endif %} /> Não</label>
+          <label class="radio-item"><input type="radio" name="org_curricular_superacao" value="sim" {% if aluno and aluno.org_curricular_superacao == 'sim' %}checked{% endif %} /> Sim</label>
+          <label class="radio-item"><input type="radio" name="org_curricular_superacao" value="parcialmente" {% if aluno and aluno.org_curricular_superacao == 'parcialmente' %}checked{% endif %} /> Parcialmente</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions" style="border:none;margin-top:20px;">
+      <button type="submit" class="btn btn-primary">{% if aluno %}Salvar Alterações{% else %}Adicionar Aluno{% endif %}</button>
       <a href="{{ url_for('turmas.detalhe', id=turma.id) }}" class="btn btn-outline">Cancelar</a>
     </div>
   </div></div></form>
 </div>
+<script>
+function toggleDeficiencia(el) {
+  document.getElementById('campoDeficiencia').style.display = el.value === 'sim' ? '' : 'none';
+}
+document.querySelectorAll('[name=apresenta_deficiencia]').forEach(r => {
+  r.addEventListener('change', function(){ toggleDeficiencia(this); });
+});
+</script>
 {% endblock %}
