@@ -4,19 +4,26 @@
 {% block topbar_actions %}<a href="{{ url_for('pedagogico.novo') }}" class="btn btn-accent btn-sm">+ Novo Registro</a>{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div class="page-header-left"><h2>Acompanhamento Pedagógico</h2><p>Registro individual de aprendizagem, carências e encaminhamentos</p></div>
+  <div class="page-header-left"><h2>Acompanhamento Pedagógico</h2><p>Registros individuais de aprendizagem, carências e encaminhamentos</p></div>
   <div class="d-flex gap-2" style="flex-wrap:wrap;">
     {% for t,l in [('','Todos'),('aprendizado','Aprendizado'),('carencia','Carência'),('encaminhamento','Encaminhamento')] %}
-    <a href="?tipo={{ t }}" class="filter-chip {% if tipo==t %}active{% endif %}">{{ l }}</a>
+    <a href="?tipo={{ t }}{% if turma_id %}&turma_id={{ turma_id }}{% endif %}" class="filter-chip {% if tipo==t %}active{% endif %}">{{ l }}</a>
     {% endfor %}
+    {% if turmas %}
+    <select onchange="location='?tipo={{ tipo or '' }}&turma_id='+this.value" class="form-control" style="width:auto;padding:5px 10px;font-size:.8rem;">
+      <option value="">Todas as turmas</option>
+      {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+    </select>
+    {% endif %}
   </div>
 </div>
 <div class="card"><div class="table-wrapper"><table class="table">
-  <thead><tr><th>Aluno</th><th>Data</th><th>Tipo</th><th>Descrição</th><th>Encaminhamento</th><th>Status</th></tr></thead>
+  <thead><tr><th>Aluno</th><th>Turma</th><th>Data</th><th>Tipo</th><th>Descrição</th><th>Encaminhamento</th><th>Status</th><th>Ações</th></tr></thead>
   <tbody>
     {% for r in registros %}
     <tr>
       <td class="fw-700">{{ r.aluno.nome }}</td>
+      <td class="text-sm text-muted">{{ r.aluno.turma.nome }}</td>
       <td>{{ r.data.strftime('%d/%m/%Y') }}</td>
       <td>
         {% if r.tipo=='aprendizado' %}<span class="badge badge-green">Aprendizado</span>
@@ -24,15 +31,16 @@
         {% elif r.tipo=='encaminhamento' %}<span class="badge badge-blue">Encaminhamento</span>
         {% else %}<span class="badge badge-navy">{{ r.tipo or '—' }}</span>{% endif %}
       </td>
-      <td class="text-sm" style="max-width:260px;">{{ r.descricao[:120] }}{% if r.descricao|length > 120 %}…{% endif %}</td>
+      <td class="text-sm" style="max-width:220px;">{{ r.descricao[:100] }}{% if r.descricao|length > 100 %}…{% endif %}</td>
       <td class="text-sm">{{ r.encaminhamento or '—' }}</td>
       <td>
         {% if r.status=='aberto' %}<span class="badge badge-red">Aberto</span>
         {% elif r.status=='em andamento' %}<span class="badge badge-amber">Em andamento</span>
         {% else %}<span class="badge badge-green">Concluído</span>{% endif %}
       </td>
+      <td><a href="{{ url_for('pedagogico.editar', id=r.id) }}" class="btn btn-outline btn-sm">Editar</a></td>
     </tr>
-    {% else %}<tr><td colspan="6" class="empty-state">Nenhum registro pedagógico encontrado.</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="8" class="empty-state">Nenhum registro encontrado.</td></tr>{% endfor %}
   </tbody>
 </table></div></div>
 {% endblock %}
