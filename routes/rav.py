@@ -3,21 +3,9 @@ from flask_login import login_required, current_user
 from app import db
 from models.models import RegistroAvaliacao, Aluno, Turma
 from datetime import datetime
-import subprocess, os, json
+import io, os
 
 rav_bp = Blueprint("rav", __name__, url_prefix="/rav")
-
-
-@rav_bp.route("/")
-@login_required
-def index():
-    turmas = Turma.query.filter_by(professor_id=current_user.id).all()
-    turma_id = request.args.get("turma_id", type=int)
-    ravs = RegistroAvaliacao.query.filter_by(professor_id=current_user.id)\
-                                  .order_by(RegistroAvaliacao.criado_em.desc()).all()
-    if turma_id:
-        ravs = [r for r in ravs if r.aluno.turma_id == turma_id]
-    return render_template("rav/index.html", ravs=ravs, turmas=turmas, turma_id=turma_id)
 
 
 def get_alunos():
@@ -28,12 +16,23 @@ def get_alunos():
     return sorted(alunos, key=lambda a: a.nome)
 
 
+@rav_bp.route("/")
+@login_required
+def index():
+    turmas   = Turma.query.filter_by(professor_id=current_user.id).all()
+    turma_id = request.args.get("turma_id", type=int)
+    ravs     = RegistroAvaliacao.query.filter_by(professor_id=current_user.id)\
+                                      .order_by(RegistroAvaliacao.criado_em.desc()).all()
+    if turma_id:
+        ravs = [r for r in ravs if r.aluno.turma_id == turma_id]
+    return render_template("rav/index.html", ravs=ravs, turmas=turmas, turma_id=turma_id)
+
+
 @rav_bp.route("/novo", methods=["GET", "POST"])
 @login_required
 def novo():
-    alunos = get_alunos()
+    alunos   = get_alunos()
     aluno_id = request.args.get("aluno_id", type=int)
-
     if request.method == "POST":
         rav = RegistroAvaliacao(
             aluno_id        = request.form.get("aluno_id", type=int),
@@ -62,7 +61,6 @@ def novo():
         db.session.commit()
         flash("RAv salvo!", "success")
         return redirect(url_for("rav.index"))
-
     return render_template("rav/form.html", alunos=alunos, aluno_id=aluno_id, rav=None)
 
 
@@ -71,7 +69,6 @@ def novo():
 def editar(id):
     rav    = RegistroAvaliacao.query.filter_by(id=id, professor_id=current_user.id).first_or_404()
     alunos = get_alunos()
-
     if request.method == "POST":
         rav.bimestre          = request.form.get("bimestre", type=int)
         rav.ano_letivo        = request.form.get("ano_letivo", 2026, type=int)
@@ -95,7 +92,6 @@ def editar(id):
         db.session.commit()
         flash("RAv atualizado!", "success")
         return redirect(url_for("rav.index"))
-
     return render_template("rav/form.html", alunos=alunos, aluno_id=rav.aluno_id, rav=rav)
 
 
@@ -117,13 +113,38 @@ def gerar(id):
     turma     = aluno.turma
     professor = rav.professor
 
-    bim_num   = rav.bimestre
+    try:
+        buffer = gerar_docx(rav, aluno, turma, professor)
+        nome = f"RAv_{aluno.nome.replace(' ','_')}_{rav.bimestre}Bim_{rav.ano_letivo}.docx"
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=nome,
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    except Exception as e:
+        flash(f"Erro ao gerar documento: {str(e)}", "danger")
+        return redirect(url_for("rav.index"))
+
+
+def xou(cond):
+    return "X" if cond else " "
+
+
+def gerar_docx(rav, aluno, turma, professor):
+    """Gera o RAv em formato .docx usando python-docx."""
+    from docx import Document
+    from docx.shared import Pt, Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_ALIGN_VERTICAL
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    bim_num   = rav.bimestre or 1
     bim_label = f"{bim_num}º Bimestre"
     bloco1    = bim_num in [1, 2]
 
-    # Check boxes
-    def xou(cond): return "X" if cond else " "
-
+    # Checkboxes
     def_nao  = xou(not aluno.apresenta_deficiencia)
     def_sim  = xou(aluno.apresenta_deficiencia)
     adeq_nao = xou(not aluno.adequacao_curricular)
@@ -149,14 +170,21 @@ def gerar(id):
     r_apr    = xou(res == "aprovado")
     r_rep    = xou(res == "reprovado")
     r_aba    = xou(res == "abandono")
-    bloco_x  = xou(bloco1)
-    bloco2_x = xou(not bloco1)
+    b1x      = xou(bloco1)
+    b2x      = xou(not bloco1)
 
-    # Build body text
+    regional  = (professor.regional or "PLANO PILOTO").upper()
+    escola    = professor.escola or ""
+    ano_turma = turma.serie or f"{turma.ano}º Ano"
+    prof_nome = professor.nome
+
+    # Texto do Bloco B
     partes = [
-        f"Este relatorio sintetiza as observacoes realizadas durante e com base nos objetivos do {bim_label}, "
-        f"que teve inicio em {rav.data_inicio_bim} e se encerrou no dia {rav.data_fim_bim}. "
-        f"O presente instrumento visa compartilhar o processo de desenvolvimento e aprendizagens do(a) estudante {aluno.nome}.",
+        f"Este relatório sintetiza as observações realizadas durante e com base nos objetivos do {bim_label}, "
+        f"que teve início em {rav.data_inicio_bim or '12 de fevereiro'} e se encerrou no dia "
+        f"{rav.data_fim_bim or '29 de maio de 2026'}. "
+        f"O presente instrumento visa compartilhar o processo de desenvolvimento e aprendizagens "
+        f"do(a) estudante {aluno.nome}.",
         rav.comportamento or "",
         rav.linguagem_leitura or "",
         rav.linguagem_escrita or "",
@@ -171,210 +199,221 @@ def gerar(id):
         rav.perspectiva or "",
     ]
     texto_b = " ".join(p.strip() for p in partes if p.strip())
-    # Escape for JS template literal
-    texto_b = texto_b.replace("\\", "\\\\").replace("`", "'").replace("${", "\\${")
 
-    regional = (professor.regional or "PLANO PILOTO").upper()
-    escola   = professor.escola or ""
-    ano_turma = turma.serie or f"{turma.ano}\u00ba Ano"
-    turma_nome = turma.nome
-    prof_nome  = professor.nome
+    # ── Cria o documento ──────────────────────────────────────────────────────
+    doc = Document()
 
-    out_path = f"/tmp/rav_{id}.docx"
-    js_path  = f"/tmp/gerar_rav_{id}.mjs"
+    # Margens estreitas (A4)
+    for section in doc.sections:
+        section.page_width  = Cm(21)
+        section.page_height = Cm(29.7)
+        section.left_margin = section.right_margin = Cm(1.5)
+        section.top_margin  = section.bottom_margin = Cm(1.5)
 
-    script = f"""
-import {{ Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-         AlignmentType, BorderStyle, WidthType, VerticalAlign, ShadingType }} from 'docx';
-import fs from 'fs';
+    def set_font(run, size=10, bold=False):
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(size)
+        run.bold = bold
 
-const S = BorderStyle.SINGLE;
-const brd = (sz=4,clr="000000") => ({{ style: S, size: sz, color: clr }});
-const borders = {{ top: brd(), bottom: brd(), left: brd(), right: brd() }};
-const TW = WidthType.DXA;
-const W  = 9640;
+    def add_centered(text, size=10, bold=False):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after  = Pt(2)
+        run = p.add_run(text)
+        set_font(run, size, bold)
+        return p
 
-const txt = (text, opts={{}}) => new TextRun({{
-  text: String(text),
-  font: "Times New Roman",
-  size: opts.size || 18,
-  bold: !!opts.bold
-}});
+    def cell_text(cell, text, size=10, bold=False, align=WD_ALIGN_PARAGRAPH.LEFT):
+        cell.text = ""
+        p = cell.paragraphs[0]
+        p.alignment = align
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after  = Pt(0)
+        run = p.add_run(text)
+        set_font(run, size, bold)
+        return p
 
-const p = (text, opts={{}}) => new Paragraph({{
-  alignment: opts.align !== undefined ? opts.align : AlignmentType.JUSTIFIED,
-  spacing: {{ line: 240, before: 30, after: 30 }},
-  children: [ txt(text, opts) ]
-}});
+    def set_cell_margins(cell, top=40, bottom=40, left=80, right=80):
+        tc   = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        tcMar = OxmlElement('w:tcMar')
+        for side, val in [('top', top), ('bottom', bottom), ('left', left), ('right', right)]:
+            node = OxmlElement(f'w:{side}')
+            node.set(qn('w:w'), str(val))
+            node.set(qn('w:type'), 'dxa')
+            tcMar.append(node)
+        tcPr.append(tcMar)
 
-const cell = (content, w, opts={{}}) => {{
-  const children = typeof content === 'string'
-    ? [p(content, opts)]
-    : content;
-  return new TableCell({{
-    borders, width: {{ size: w, type: TW }},
-    columnSpan: opts.span || 1,
-    verticalAlign: VerticalAlign.CENTER,
-    margins: {{ top: 40, bottom: 40, left: 80, right: 80 }},
-    children
-  }});
-}};
+    def shade_cell(cell, fill="DDDDDD"):
+        tc   = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        shd  = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'), fill)
+        tcPr.append(shd)
 
-const letra = (l) => new TableCell({{
-  borders,
-  width: {{ size: 500, type: TW }},
-  shading: {{ fill: "DDDDDD", type: ShadingType.CLEAR }},
-  verticalAlign: VerticalAlign.CENTER,
-  margins: {{ top: 40, bottom: 40, left: 80, right: 80 }},
-  children: [new Paragraph({{
-    alignment: AlignmentType.CENTER,
-    children: [txt(l, {{ bold: true }})]
-  }})]
-}});
+    # ── Cabeçalho ─────────────────────────────────────────────────────────────
+    add_centered("SECRETARIA DE ESTADO DE EDUCAÇÃO DO DISTRITO FEDERAL", 10, True)
+    add_centered("SUBSECRETARIA DE EDUCAÇÃO BÁSICA", 10, True)
+    add_centered("REGISTRO DE AVALIAÇÃO - RAv", 11, True)
+    add_centered("Formulário 1: Descrição do Processo de Aprendizagem do Estudante", 10, True)
+    p = add_centered("Ensino Fundamental (Anos Iniciais)", 10, True)
+    p.paragraph_format.space_after = Pt(6)
 
-const row = (...cells) => new TableRow({{ children: cells }});
-const emptyLetra = () => new TableCell({{
-  borders, width: {{ size: 500, type: TW }},
-  margins: {{ top: 20, bottom: 20, left: 80, right: 80 }},
-  children: [new Paragraph({{ children: [] }})]
-}});
+    # ── Tabela Bloco A ─────────────────────────────────────────────────────────
+    def add_bloco_row(table, letra_col_cell, texto, bold=False):
+        row = table.add_row()
+        # Coluna letra (já preenchida na primeira linha)
+        c0 = row.cells[0]
+        c1 = row.cells[1]
+        set_cell_margins(c0)
+        set_cell_margins(c1)
+        cell_text(c1, texto, bold=bold)
+        return row
 
-const doc = new Document({{
-  sections: [{{
-    properties: {{
-      page: {{
-        size: {{ width: 11906, height: 16838 }},
-        margin: {{ top: 720, right: 720, bottom: 720, left: 720 }}
-      }}
-    }},
-    children: [
-      new Paragraph({{ alignment: AlignmentType.CENTER, spacing: {{ before:0, after:60 }},
-        children: [txt("SECRETARIA DE ESTADO DE EDUCACAO DO DISTRITO FEDERAL", {{ bold:true }})] }}),
-      new Paragraph({{ alignment: AlignmentType.CENTER, spacing: {{ before:0, after:60 }},
-        children: [txt("SUBSECRETARIA DE EDUCACAO BASICA", {{ bold:true }})] }}),
-      new Paragraph({{ alignment: AlignmentType.CENTER, spacing: {{ before:60, after:40 }},
-        children: [txt("REGISTRO DE AVALIACAO - RAv", {{ bold:true, size:20 }})] }}),
-      new Paragraph({{ alignment: AlignmentType.CENTER, spacing: {{ before:0, after:40 }},
-        children: [txt("Formulario 1: Descricao do Processo de Aprendizagem do Estudante", {{ bold:true }})] }}),
-      new Paragraph({{ alignment: AlignmentType.CENTER, spacing: {{ before:0, after:120 }},
-        children: [txt("Ensino Fundamental (Anos Iniciais)", {{ bold:true }})] }}),
-
-      new Table({{
-        width: {{ size: W, type: TW }}, columnWidths: [500, W-500],
-        rows: [
-          row(letra("A"), cell("Ano Letivo: {rav.ano_letivo}", W-500)),
-          row(emptyLetra(), cell("Coordenacao Regional de Ensino: {regional}", W-500)),
-          row(emptyLetra(), cell("Unidade Escolar: {escola}", W-500)),
-          row(emptyLetra(), cell("Bloco: ({bloco_x}) 1 Bloco  ({bloco2_x}) 2 Bloco", W-500)),
-          row(emptyLetra(), cell("Ano: {ano_turma}    Turma: {turma_nome}    Turno: ( ) Matutino  (X) Vespertino  ( ) Integral", W-500)),
-          row(emptyLetra(), cell("Professor(a) Regente da turma: {prof_nome}", W-500)),
-          row(emptyLetra(), cell("Professor(a): Davidson Bispo da Silva", W-500)),
-          row(emptyLetra(), cell("Estudante: {aluno.nome}", W-500)),
-          row(emptyLetra(), cell("Apresenta Deficiencia ou TEA? ({def_nao}) nao  ({def_sim}) sim", W-500)),
-          row(emptyLetra(), cell("Houve adequacao curricular? ({adeq_nao}) nao  ({adeq_sim}) sim", W-500)),
-          row(emptyLetra(), cell("Estudante indicado para temporalidade? ({temp_nao}) nao  ({temp_sim}) sim", W-500)),
-          row(emptyLetra(), cell("Esta sendo atendido em Sala de Recursos? ({sala_nao}) nao  ({sala_sim}) sim", W-500)),
-          row(emptyLetra(), cell("Estudante do Programa SuperAcao no Sistema de Gestao i-Educar? ({sup_nao}) nao  ({sup_sim}) sim", W-500)),
-          row(emptyLetra(), cell("Atendimento:", W-500)),
-          row(emptyLetra(), cell("({cl_x}) Classe Comum com atendimento personalizado", W-500)),
-          row(emptyLetra(), cell("({sa_x}) Turma SuperAcao", W-500)),
-          row(emptyLetra(), cell("({sr_x}) Turma SuperAcao Reduzida", W-500)),
-          row(emptyLetra(), cell("Foi aplicada a Organizacao Curricular especifica do Programa Superacao?", W-500)),
-          row(emptyLetra(), cell("({org_n}) nao  ({org_s}) sim  ({org_p}) parcialmente", W-500)),
-          row(emptyLetra(), new TableCell({{
-            borders, width: {{ size: W-500, type: TW }},
-            margins: {{ top: 40, bottom: 40, left: 80, right: 80 }},
-            children: [new Paragraph({{ children: [
-              txt("{bim_label}    Total de dias letivos: {rav.total_dias}    Total de Faltas: {rav.total_faltas}", {{ bold:true }})
-            ]}})]
-          }}),
-        ]
-      }}),
-
-      new Table({{
-        width: {{ size: W, type: TW }}, columnWidths: [500, W-500],
-        rows: [
-          new TableRow({{ children: [
-            letra("B"),
-            new TableCell({{
-              borders, width: {{ size: W-500, type: TW }},
-              margins: {{ top: 80, bottom: 80, left: 100, right: 80 }},
-              children: [new Paragraph({{
-                alignment: AlignmentType.JUSTIFIED,
-                spacing: {{ line: 240 }},
-                children: [txt(`{texto_b}`)]
-              }})]
-            }})
-          ]}})
-        ]
-      }}),
-
-      new Table({{
-        width: {{ size: W, type: TW }}, columnWidths: [500, W-500],
-        rows: [ row(letra("C"), cell("Local/Data: Brasilia/DF, 29 de Abril de 2026.", W-500)) ]
-      }}),
-
-      new Table({{
-        width: {{ size: W, type: TW }}, columnWidths: [500, W-500],
-        rows: [
-          new TableRow({{ children: [
-            letra("D"),
-            new TableCell({{
-              borders, width: {{ size: W-500, type: TW }},
-              margins: {{ top: 80, bottom: 80, left: 80, right: 80 }},
-              children: [
-                p("{prof_nome.upper()}", {{ bold:true }}),
-                p("Assinatura/Matricula da Professora Regente", {{ size:16 }}),
-                p(" "),
-                p("Assinatura/Matricula do(a) Coordenador(a) Pedagogico", {{ size:16 }}),
-                p(" "),
-                p("Assinatura do(a) Pai/Mae ou Responsavel Legal", {{ size:16 }}),
-              ]
-            }})
-          ]}})
-        ]
-      }}),
-
-      new Table({{
-        width: {{ size: W, type: TW }}, columnWidths: [500, W-500],
-        rows: [
-          new TableRow({{ children: [
-            letra("E"),
-            new TableCell({{
-              borders, width: {{ size: W-500, type: TW }},
-              margins: {{ top: 80, bottom: 80, left: 80, right: 80 }},
-              children: [
-                p("Resultado Final (Preencher somente ao final do 4 bimestre)", {{ bold:true }}),
-                p("({r_cur}) Cursando  ({r_pro}) Progressao Continuada  ({r_ava}) Avanco das Aprendizagens"),
-                p("({r_apr}) Aprovado  ({r_rep}) Reprovado  ({r_aba}) Abandono"),
-              ]
-            }})
-          ]}})
-        ]
-      }}),
+    linhas_a = [
+        (True,  f"Ano Letivo: {rav.ano_letivo}"),
+        (False, f"Coordenação Regional de Ensino: {regional}"),
+        (False, f"Unidade Escolar: {escola}"),
+        (False, f"Bloco: ({b1x}) 1º Bloco   ({b2x}) 2º Bloco"),
+        (False, f"Ano: {ano_turma}   Turma: {turma.nome}   Turno: ( ) Matutino   (X) Vespertino   ( ) Integral"),
+        (False, f"Professor (a) Regente da turma: {prof_nome}"),
+        (False, f"Professor(a): "),
+        (False, f"Professor(a): "),
+        (False, f"Estudante: {aluno.nome}"),
+        (False, f"Apresenta Deficiência ou TEA? ({def_nao}) não   ({def_sim}) sim"),
+        (False, f"Houve adequação curricular? ({adeq_nao}) não   ({adeq_sim}) sim"),
+        (False, f"Estudante indicado para temporalidade? ({temp_nao}) não   ({temp_sim}) sim"),
+        (False, f"Está sendo atendido em Sala de Recursos? ({sala_nao}) não   ({sala_sim}) sim"),
+        (False, f'Estudante do Programa SuperAção "setado" no Sistema de Gestão i-Educar? ({sup_nao}) não   ({sup_sim}) sim'),
+        (False, "Atendimento:"),
+        (False, f"({cl_x}) Classe Comum com atendimento personalizado"),
+        (False, f"({sa_x}) Turma SuperAção"),
+        (False, f"({sr_x}) Turma SuperAção Reduzida"),
+        (False, "Foi aplicada a Organização Curricular específica do Programa Superação?"),
+        (False, f"({org_n}) não   ({org_s}) sim   ({org_p}) parcialmente"),
+        (False, f"{bim_label}   Total de dias letivos: {rav.total_dias}   Total de Faltas: {rav.total_faltas}"),
     ]
-  }}]
-}});
 
-Packer.toBuffer(doc).then(buf => {{
-  fs.writeFileSync("{out_path}", buf);
-  console.log("OK:" + buf.length);
-}}).catch(e => {{ console.error("ERRO:" + e.message); process.exit(1); }});
-"""
+    tbl_a = doc.add_table(rows=0, cols=2)
+    tbl_a.style = "Table Grid"
+    col_widths_a = [Cm(1.0), Cm(17.0)]
 
-    with open(js_path, "w", encoding="utf-8") as f:
-        f.write(script)
+    first = True
+    for is_first, texto in linhas_a:
+        row = tbl_a.add_row()
+        c0, c1 = row.cells[0], row.cells[1]
+        set_cell_margins(c0); set_cell_margins(c1)
+        if first:
+            shade_cell(c0)
+            cell_text(c0, "A", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+            first = False
+        else:
+            c0.text = ""
+        ultima = (texto == linhas_a[-1][1])
+        cell_text(c1, texto, bold=ultima)
 
-    result = subprocess.run(
-        ["node", "--input-type=module"],
-        input=open(js_path).read(),
-        capture_output=True, text=True, cwd="/home/claude/.npm-global/lib/node_modules"
-    )
+    # Ajusta larguras
+    for row in tbl_a.rows:
+        row.cells[0].width = col_widths_a[0]
+        row.cells[1].width = col_widths_a[1]
 
-    if result.returncode != 0 or not os.path.exists(out_path):
-        flash(f"Erro ao gerar .docx: {(result.stderr or result.stdout)[:300]}", "danger")
-        return redirect(url_for("rav.index"))
+    doc.add_paragraph().paragraph_format.space_after = Pt(0)
 
-    nome = f"RAv_{aluno.nome.replace(' ','_')}_{bim_num}Bim_{rav.ano_letivo}.docx"
-    return send_file(out_path, as_attachment=True, download_name=nome,
-                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    # ── Tabela Bloco B ─────────────────────────────────────────────────────────
+    tbl_b = doc.add_table(rows=1, cols=2)
+    tbl_b.style = "Table Grid"
+    row_b = tbl_b.rows[0]
+    c0b, c1b = row_b.cells[0], row_b.cells[1]
+    set_cell_margins(c0b); set_cell_margins(c1b, left=100, right=100)
+    shade_cell(c0b)
+    cell_text(c0b, "B", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    c0b.width = Cm(1.0)
+    c1b.width = Cm(17.0)
+
+    # Texto justificado do bloco B
+    c1b.text = ""
+    p_b = c1b.paragraphs[0]
+    p_b.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_b.paragraph_format.space_before = Pt(0)
+    p_b.paragraph_format.space_after  = Pt(0)
+    from docx.oxml import OxmlElement as OE
+    # Set line spacing 1.0
+    pPr = p_b._p.get_or_add_pPr()
+    spacing = OE('w:spacing')
+    spacing.set(qn('w:line'), '240')
+    spacing.set(qn('w:lineRule'), 'auto')
+    pPr.append(spacing)
+    run_b = p_b.add_run(texto_b)
+    set_font(run_b, 10)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(0)
+
+    # ── Bloco C ────────────────────────────────────────────────────────────────
+    tbl_c = doc.add_table(rows=1, cols=2)
+    tbl_c.style = "Table Grid"
+    c0c, c1c = tbl_c.rows[0].cells[0], tbl_c.rows[0].cells[1]
+    set_cell_margins(c0c); set_cell_margins(c1c)
+    shade_cell(c0c)
+    cell_text(c0c, "C", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    cell_text(c1c, "Local/Data: Brasília/DF, 29 de Abril de 2026.")
+    c0c.width = Cm(1.0); c1c.width = Cm(17.0)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(0)
+
+    # ── Bloco D — Assinaturas ──────────────────────────────────────────────────
+    tbl_d = doc.add_table(rows=1, cols=2)
+    tbl_d.style = "Table Grid"
+    c0d, c1d = tbl_d.rows[0].cells[0], tbl_d.rows[0].cells[1]
+    set_cell_margins(c0d); set_cell_margins(c1d)
+    shade_cell(c0d)
+    cell_text(c0d, "D", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    c0d.width = Cm(1.0); c1d.width = Cm(17.0)
+
+    c1d.text = ""
+    for linha, bold in [
+        (prof_nome.upper(), True),
+        ("Assinatura/Matrícula da Professora Regente", False),
+        (" ", False),
+        ("Assinatura/Matrícula do(a) Coordenador(a) Pedagógico", False),
+        (" ", False),
+        ("Assinatura do(a) Pai/Mãe ou Responsável Legal", False),
+    ]:
+        p = c1d.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after  = Pt(4)
+        run = p.add_run(linha)
+        set_font(run, 9 if not bold else 10, bold)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(0)
+
+    # ── Bloco E — Resultado Final ──────────────────────────────────────────────
+    tbl_e = doc.add_table(rows=1, cols=2)
+    tbl_e.style = "Table Grid"
+    c0e, c1e = tbl_e.rows[0].cells[0], tbl_e.rows[0].cells[1]
+    set_cell_margins(c0e); set_cell_margins(c1e)
+    shade_cell(c0e)
+    cell_text(c0e, "E", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    c0e.width = Cm(1.0); c1e.width = Cm(17.0)
+
+    c1e.text = ""
+    for linha in [
+        ("Resultado Final (Preencher somente ao final do 4º bimestre)", True),
+        (f"({r_cur}) Cursando   ({r_pro}) Progressão Continuada   ({r_ava}) Avanço das Aprendizagens - Correção de Fluxo", False),
+        (f"({r_apr}) Aprovado   ({r_rep}) Reprovado   ({r_aba}) Abandono", False),
+    ]:
+        p = c1e.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after  = Pt(2)
+        run = p.add_run(linha[0])
+        set_font(run, 10, linha[1])
+
+    # ── Salva em memória ───────────────────────────────────────────────────────
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
