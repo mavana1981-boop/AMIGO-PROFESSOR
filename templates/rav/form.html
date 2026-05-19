@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}{% if rav %}Editar RAv{% else %}Novo RAv{% endif %}{% endblock %}
+{% block page_title %}{% if rav %}Editar RAv{% else %}Novo Registro de Avaliação (RAv){% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+.rav-section { background: white; border-radius: 12px; border: 1px solid var(--neutral-200); margin-bottom: 20px; overflow: hidden; }
+.rav-section-header { background: var(--navy-950); color: white; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+.rav-section-letra { width: 32px; height: 32px; background: var(--amber-500); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; color: white; flex-shrink: 0; }
+.rav-section-title { font-weight: 700; font-size: .9375rem; }
+.rav-section-body { padding: 20px; }
+.check-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--neutral-200); cursor: pointer; transition: all .15s; }
+.check-item:hover { border-color: var(--navy-600); background: var(--navy-50); }
+.check-item input[type=checkbox] { margin-top: 2px; flex-shrink: 0; accent-color: var(--navy-700); width: 16px; height: 16px; }
+.check-item label { font-size: .8125rem; color: var(--neutral-700); cursor: pointer; line-height: 1.5; }
+.campo-livre { margin-top: 12px; }
+.campo-livre label { font-size: .75rem; font-weight: 700; color: var(--neutral-500); text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 6px; }
+.area-textarea { width: 100%; border: 1.5px solid var(--neutral-200); border-radius: 8px; padding: 10px 14px; font-size: .875rem; font-family: inherit; resize: vertical; min-height: 80px; transition: border-color .15s; }
+.area-textarea:focus { outline: none; border-color: var(--navy-600); box-shadow: 0 0 0 3px rgba(45,114,184,.1); }
+.frases-preset { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.frase-btn { font-size: .7rem; padding: 3px 8px; border: 1.5px solid var(--neutral-200); border-radius: 999px; background: white; color: var(--neutral-600); cursor: pointer; transition: all .15s; }
+.frase-btn:hover { border-color: var(--navy-600); color: var(--navy-700); background: var(--navy-50); }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="POST" id="ravForm">
+<div style="max-width:860px;">
+
+  <!-- Bloco A: Identificação do Aluno -->
+  <div class="rav-section">
+    <div class="rav-section-header">
+      <div class="rav-section-letra">A</div>
+      <div class="rav-section-title">Identificação do Estudante e da Turma</div>
+    </div>
+    <div class="rav-section-body">
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Aluno *</label>
+          <select class="form-control" name="aluno_id" required id="alunoSelect" onchange="carregarDadosAluno(this)">
+            <option value="">— Selecionar aluno —</option>
+            {% for a in alunos %}
+            <option value="{{ a.id }}"
+              data-deficiencia="{{ 'sim' if a.apresenta_deficiencia else 'nao' }}"
+              data-adequacao="{{ 'sim' if a.adequacao_curricular else 'nao' }}"
+              data-temporalidade="{{ 'sim' if a.indicado_temporalidade else 'nao' }}"
+              data-sala="{{ 'sim' if a.sala_recursos else 'nao' }}"
+              data-superacao="{{ 'sim' if a.programa_superacao else 'nao' }}"
+              data-atendimento="{{ a.tipo_atendimento or '' }}"
+              data-org="{{ a.org_curricular_superacao or 'nao' }}"
+              {% if (rav and rav.aluno_id == a.id) or (not rav and aluno_id == a.id) %}selected{% endif %}>
+              {{ a.nome }} ({{ a.turma.nome }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Bimestre *</label>
+          <select class="form-control" name="bimestre" required>
+            {% for b in [1,2,3,4] %}
+            <option value="{{ b }}" {% if rav and rav.bimestre==b %}selected{% elif not rav and b==1 %}selected{% endif %}>{{ b }}º Bimestre</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row form-row-3">
+        <div class="form-group"><label class="form-label">Ano Letivo</label>
+          <input class="form-control" type="number" name="ano_letivo" value="{{ rav.ano_letivo if rav else 2026 }}" />
+        </div>
+        <div class="form-group"><label class="form-label">Total de Dias Letivos</label>
+          <input class="form-control" type="number" name="total_dias" value="{{ rav.total_dias if rav else 48 }}" />
+        </div>
+        <div class="form-group"><label class="form-label">Total de Faltas</label>
+          <input class="form-control" type="number" name="total_faltas" value="{{ rav.total_faltas if rav else 0 }}" min="0" />
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Início do Bimestre</label>
+          <input class="form-control" name="data_inicio_bim" value="{{ rav.data_inicio_bim if rav else '12 de fevereiro' }}" placeholder="Ex.: 12 de fevereiro" />
+        </div>
+        <div class="form-group"><label class="form-label">Fim do Bimestre</label>
+          <input class="form-control" name="data_fim_bim" value="{{ rav.data_fim_bim if rav else '29 de maio de 2026' }}" placeholder="Ex.: 29 de maio de 2026" />
+        </div>
+      </div>
+
+      <!-- Info do aluno (carregado automaticamente) -->
+      <div style="background:var(--neutral-50);border-radius:10px;padding:14px;border:1px solid var(--neutral-200);font-size:.8125rem;">
+        <strong style="color:var(--navy-900);display:block;margin-bottom:10px;">Dados do cadastro do aluno (migrados automaticamente)</strong>
+        <div class="form-row form-row-2" style="gap:8px;">
+          <div>🔹 Deficiência/TEA: <strong id="info_def">—</strong></div>
+          <div>🔹 Adequação Curricular: <strong id="info_adeq">—</strong></div>
+          <div>🔹 Indicado Temporalidade: <strong id="info_temp">—</strong></div>
+          <div>🔹 Sala de Recursos: <strong id="info_sala">—</strong></div>
+          <div>🔹 Programa SuperAção: <strong id="info_sup">—</strong></div>
+          <div>🔹 Tipo de Atendimento: <strong id="info_atend">—</strong></div>
+        </div>
+      </div>
+
+      <!-- Resultado Final -->
+      <div class="form-group" style="margin-top:16px;"><label class="form-label">Resultado Final (preencher somente no 4º Bimestre)</label>
+        <select class="form-control" name="resultado_final">
+          <option value="">— Não se aplica —</option>
+          <option value="cursando" {% if rav and rav.resultado_final=='cursando' %}selected{% endif %}>Cursando</option>
+          <option value="progressao" {% if rav and rav.resultado_final=='progressao' %}selected{% endif %}>Progressão Continuada</option>
+          <option value="avanco" {% if rav and rav.resultado_final=='avanco' %}selected{% endif %}>Avanço das Aprendizagens - Correção de Fluxo</option>
+          <option value="aprovado" {% if rav and rav.resultado_final=='aprovado' %}selected{% endif %}>Aprovado</option>
+          <option value="reprovado" {% if rav and rav.resultado_final=='reprovado' %}selected{% endif %}>Reprovado</option>
+          <option value="abandono" {% if rav and rav.resultado_final=='abandono' %}selected{% endif %}>Abandono</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bloco B: Descrição por área -->
+  <div class="rav-section">
+    <div class="rav-section-header">
+      <div class="rav-section-letra">B</div>
+      <div class="rav-section-title">Descrição do Processo de Aprendizagem</div>
+    </div>
+    <div class="rav-section-body">
+      <p style="font-size:.8125rem;color:var(--neutral-500);margin-bottom:20px;">
+        Clique nas frases pré-definidas para adicioná-las ao campo ou escreva livremente. O texto final será composto automaticamente no documento.
+      </p>
+
+      {% set areas = [
+        ('comportamento', 'Comportamento e Convivência', [
+          'O(A) estudante é assíduo(a) e pontual, respeita as regras e combinados, apresentando bom comportamento.',
+          'Demonstra bom relacionamento com a professora, sendo receptivo(a) às orientações.',
+          'Em relação aos colegas, mostra-se respeitoso(a), porém, em alguns momentos, apresenta conversas excessivas, sendo necessário retomar sua atenção para as atividades propostas.',
+          'Participa das atividades propostas e demonstra bom desempenho acadêmico, com autonomia na realização das tarefas.',
+          'Necessita de maior atenção quanto ao capricho e à organização na execução das atividades.',
+          'Apresenta dificuldades de concentração, necessitando de intervenções frequentes durante as atividades.',
+          'Demonstra interesse e motivação nas atividades propostas.',
+        ]),
+        ('linguagem_leitura', 'Linguagem — Leitura', [
+          'Apresenta bom desenvolvimento na leitura, lê com fluência e compreensão adequada, expressando-se com clareza.',
+          'Apresenta dificuldades na leitura, lê pausadamente e com frequência não interpreta adequadamente o texto.',
+          'Lê com fluência, mas apresenta dificuldades de interpretação textual.',
+          'Foram trabalhados conteúdos como leitura e interpretação textual, além dos gêneros textuais poema, biografia, notícia e cartaz.',
+          'Participou de projetos de leitura que incentivam o fortalecimento do hábito leitor.',
+          'Está em processo de aquisição da leitura, reconhecendo palavras e frases simples.',
+        ]),
+        ('linguagem_escrita', 'Linguagem — Escrita', [
+          'Na escrita, demonstra boa organização das ideias, porém necessita maior atenção à pontuação, paragrafação e caligrafia.',
+          'Demonstra boa produção escrita, com organização de ideias e uso adequado da norma culta.',
+          'Necessita de maior atenção quanto ao uso da acentuação, pontuação, margens e paragrafação.',
+          'Apresenta dificuldades na escrita, necessitando de apoio para organizar as ideias e estruturar o texto.',
+          'Demonstra progresso significativo na escrita, com produções mais elaboradas ao longo do bimestre.',
+        ]),
+        ('gramatica', 'Gramática', [
+          'Compreende e aplica as classes de palavras, sendo capaz de identificar e classificar substantivos, pronomes, artigos, verbos e adjetivos/locuções adjetivas.',
+          'Compreende e aplica as classes de palavras com auxílio da professora.',
+          'Apresenta dificuldades na identificação e classificação das classes de palavras.',
+          'Demonstra compreensão satisfatória dos conteúdos gramaticais trabalhados.',
+        ]),
+        ('matematica', 'Matemática', [
+          'Apresenta bom desempenho e compreensão dos conteúdos trabalhados, como classes e ordens numéricas, números romanos, valor absoluto e valor relativo.',
+          'Resolve com autonomia operações de adição, subtração e multiplicação.',
+          'Está em processo de aprendizagem de resolução de operações de divisão.',
+          'Participa de atividades com tabuada e tem demonstrado bom progresso no cálculo.',
+          'Resolve situações-problema de forma satisfatória.',
+          'Ainda necessita de auxílio para resolver operações de divisão e problemas matemáticos.',
+          'Apresenta dificuldades nas operações matemáticas, necessitando de apoio constante da professora.',
+        ]),
+        ('ciencias', 'Ciências', [
+          'Compreendeu os conteúdos abordados, como Sistema Solar, movimentos da Terra, estações do ano, fases da Lua e aspectos relacionados à água (estados físicos, uso consciente e ciclo hidrológico).',
+          'Demonstrou compreensão parcial dos conteúdos de Ciências trabalhados no bimestre.',
+          'Participou ativamente das atividades práticas e experimentais propostas.',
+          'Apresenta dificuldades na assimilação dos conteúdos de Ciências, necessitando de estratégias diferenciadas.',
+        ]),
+        ('historia', 'História', [
+          'Compreendeu a importância dos acontecimentos históricos, bem como aspectos relacionados aos povos, culturas e tradições, além de reflexões sobre diversidade, desigualdades e preconceitos.',
+          'Demonstrou compreensão dos conteúdos históricos trabalhados no bimestre.',
+          'Participou das discussões e atividades sobre diversidade cultural e identidade.',
+          'Apresenta dificuldades em relacionar os conteúdos históricos com o contexto atual.',
+        ]),
+        ('geografia', 'Geografia', [
+          'Demonstrou compreensão dos conteúdos relacionados aos continentes, regiões do Brasil, estados e capitais.',
+          'Compreendeu os conteúdos de localização e orientação geográfica trabalhados.',
+          'Participou ativamente das atividades cartográficas e de análise do espaço geográfico.',
+          'Apresenta dificuldades na assimilação dos conteúdos geográficos.',
+        ]),
+        ('artes', 'Artes', [
+          'Participou das atividades de produção de murais, artes visuais, biografias e trabalhos com contornos, demonstrando criatividade, embora necessite aprimorar o capricho nas produções.',
+          'Demonstrou criatividade e interesse nas atividades artísticas propostas.',
+          'Participou das atividades de artes visuais com entusiasmo e dedicação.',
+          'Necessita desenvolver maior cuidado e capricho em suas produções artísticas.',
+        ]),
+        ('educacao_fisica', 'Educação Física', [
+          'Participa regularmente das aulas, envolvendo-se nas práticas corporais propostas, que contemplam jogos, esportes e atividades lúdicas. Demonstra compreensão das regras, espírito de cooperação e respeito aos colegas.',
+          'Apresenta avanços no desenvolvimento das capacidades físicas e motoras, além de atitudes positivas relacionadas ao trabalho em equipe.',
+          'Participa das aulas com entusiasmo, respeitando as regras e os colegas.',
+          'Apresenta dificuldades motoras, sendo acompanhado(a) com atividades adaptadas.',
+        ]),
+        ('sintese', 'Síntese do Bimestre', [
+          'Neste bimestre, o(a) estudante demonstrou bom desempenho geral, participando das atividades e propostas com interesse, sendo estas desenvolvidas com o uso do livro didático, registros em caderno, produções diversas, vídeos, rodas de conversa e mediações da professora.',
+          'Ao longo do bimestre, foram realizados simulados com o objetivo de auxiliar o(a) estudante na identificação de suas dificuldades e potencialidades.',
+          'O(A) estudante demonstrou desenvolvimento satisfatório, de acordo com as expectativas de aprendizagem do bimestre, com base nas habilidades previstas na BNCC e no Currículo em Movimento do Distrito Federal.',
+        ]),
+        ('perspectiva', 'Perspectivas para o Próximo Bimestre', [
+          'Para o próximo bimestre, espera-se que o(a) estudante continue avançando em seu processo de aprendizagem, especialmente no que se refere ao capricho, organização e atenção durante as atividades.',
+          'Espera-se que o(a) estudante aprofunde os conhecimentos já consolidados e avance nas áreas em que apresenta dificuldades.',
+          'Serão mantidas as estratégias de intervenção pedagógica para apoiar o(a) estudante em seu processo de aprendizagem.',
+          'O(A) estudante será acompanhado(a) de forma mais próxima, com atividades diferenciadas para superar as dificuldades identificadas.',
+        ]),
+      ] %}
+
+      {% for campo, titulo, frases in areas %}
+      <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--neutral-100);">
+        <div style="font-size:.875rem;font-weight:700;color:var(--navy-900);margin-bottom:10px;">{{ titulo }}</div>
+        <div class="frases-preset">
+          {% for frase in frases %}
+          <button type="button" class="frase-btn" onclick="adicionarFrase('{{ campo }}', this)">+ {{ frase[:60] }}…</button>
+          {% endfor %}
+        </div>
+        <div class="campo-livre">
+          <label>Texto final (edite livremente)</label>
+          <textarea class="area-textarea" name="{{ campo }}" id="{{ campo }}" rows="3">{{ rav[campo] if rav and rav[campo] else '' }}</textarea>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Ações -->
+  <div class="d-flex gap-3" style="margin-top:4px;margin-bottom:32px;">
+    <button type="submit" class="btn btn-primary" style="padding:12px 28px;">
+      {% if rav %}Salvar Alterações{% else %}Salvar RAv{% endif %}
+    </button>
+    <a href="{{ url_for('rav.index') }}" class="btn btn-outline">Cancelar</a>
+  </div>
+
+</div>
+</form>
+
+<!-- Frases completas para o JS -->
+<script>
+const frasesCompletas = {
+  {% for campo, titulo, frases in areas %}
+  "{{ campo }}": {{ frases | tojson }},
+  {% endfor %}
+};
+
+// Botão de frase → adiciona ao textarea
+function adicionarFrase(campo, btn) {
+  const idx = btn.parentElement.querySelectorAll('.frase-btn');
+  const i = Array.from(idx).indexOf(btn);
+  const frase = frasesCompletas[campo][i];
+  const ta = document.getElementById(campo);
+  const sep = ta.value.trim() ? ' ' : '';
+  ta.value = ta.value.trim() + sep + frase;
+  ta.focus();
+  btn.style.background = 'var(--sage-100)';
+  btn.style.borderColor = 'var(--sage-500)';
+  btn.style.color = 'var(--sage-600)';
+}
+
+// Carrega dados do aluno no painel de info
+function carregarDadosAluno(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const map = {
+    'sim': '✅ Sim', 'nao': '❌ Não', '': '—',
+    'classe_comum': 'Classe Comum', 'superacao': 'SuperAção',
+    'superacao_reduzida': 'SuperAção Reduzida',
+    'parcialmente': 'Parcialmente'
+  };
+  document.getElementById('info_def').textContent   = map[opt.dataset.deficiencia] || '—';
+  document.getElementById('info_adeq').textContent  = map[opt.dataset.adequacao]   || '—';
+  document.getElementById('info_temp').textContent  = map[opt.dataset.temporalidade]|| '—';
+  document.getElementById('info_sala').textContent  = map[opt.dataset.sala]         || '—';
+  document.getElementById('info_sup').textContent   = map[opt.dataset.superacao]    || '—';
+  document.getElementById('info_atend').textContent = map[opt.dataset.atendimento]  || '—';
+}
+
+// Carregar ao abrir (se já houver aluno selecionado)
+window.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('alunoSelect');
+  if (sel.value) carregarDadosAluno(sel);
+});
+</script>
+{% endblock %}
