@@ -1,175 +1,129 @@
 {% extends "base.html" %}
-{% block title %}Relatório de Frequência{% endblock %}
-{% block page_title %}Relatório de Frequência{% endblock %}
+{% block title %}Relatório de Planejamento{% endblock %}
+{% block page_title %}Relatório de Planejamento{% endblock %}
 {% block topbar_actions %}
-  <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-accent btn-sm">⬇ Baixar PDF</a>
-  <a href="{{ url_for('frequencia.historico', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-outline btn-sm">← Voltar</a>
+  <a href="{{ url_for('planejamento.relatorio_pdf', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-accent btn-sm">⬇ Baixar PDF</a>
+  <a href="{{ url_for('planejamento.index', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">← Voltar</a>
 {% endblock %}
-{% block extra_css %}
-<style>
-.freq-bar-wrap{width:100px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
-.freq-bar-fill{height:100%;border-radius:999px;}
-.freq-bar-green{background:var(--sage-500);}
-.freq-bar-amber{background:var(--amber-500);}
-.freq-bar-red{background:var(--rose-500);}
-.freq-pct{font-size:.85rem;font-weight:700;margin-left:6px;vertical-align:middle;}
-.freq-pct-green{color:var(--sage-600);}
-.freq-pct-amber{color:#92400e;}
-.freq-pct-red{color:var(--rose-500);}
-.aluno-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:16px;overflow:hidden;}
-.aluno-card-header{padding:14px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
-.aluno-card-nome{font-weight:700;font-size:1rem;color:var(--navy-900);}
-.aluno-card-stats{display:flex;gap:16px;font-size:.8125rem;}
-.stat-pill{background:white;border:1px solid var(--neutral-200);border-radius:8px;padding:4px 12px;font-weight:600;}
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="page-header">
-  <div class="page-header-left">
-    <h2>{{ turma.nome }} — {{ periodo_label }}</h2>
-    <p>Relatório de frequência individual e consolidado</p>
-  </div>
+
+<!-- Cabeçalho -->
+<div style="background:var(--navy-900);color:white;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
+  <div style="font-size:1.125rem;font-weight:800;">Planejamento de Aulas</div>
+  <div style="font-size:.875rem;opacity:.7;margin-top:2px;">Período: {{ periodo_label }}  ·  {{ planos|length }} plano(s)</div>
 </div>
 
 <!-- Filtros -->
 <div class="card" style="margin-bottom:20px;">
-  <div class="card-body" style="padding:16px 20px;">
-    <form class="d-flex gap-2" style="flex-wrap:wrap;align-items:flex-end;" method="GET">
+  <div class="card-body" style="padding:14px 20px;">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
       <div>
-        <label class="form-label" style="font-size:.75rem;">Período</label>
-        <div class="d-flex gap-1">
-          {% for f, lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
-          <a href="?filtro={{ f }}&ano={{ ano }}&mes={{ mes }}&bimestre={{ bimestre }}&semestre={{ semestre }}&aluno_id={{ aluno_id or '' }}"
+        <div class="form-label" style="font-size:.75rem;margin-bottom:6px;">Período</div>
+        <div style="display:flex;gap:4px;">
+          {% for f,lbl in [('semana','Semana'),('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
+          <a href="{{ url_for('planejamento.relatorio', filtro=f, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}"
              class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 12px;font-size:.8rem;">{{ lbl }}</a>
           {% endfor %}
         </div>
       </div>
-      {% if filtro == 'mes' %}
-      <div class="form-group" style="margin:0;">
-        <label class="form-label" style="font-size:.75rem;">Mês</label>
-        <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
-          {% set meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-          {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
-        </select>
-        <input type="hidden" name="filtro" value="mes">
-      </div>
-      {% elif filtro == 'bimestre' %}
-      <div class="form-group" style="margin:0;">
-        <label class="form-label" style="font-size:.75rem;">Bimestre</label>
-        <select name="bimestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
-          {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
-        </select>
-        <input type="hidden" name="filtro" value="bimestre">
-      </div>
-      {% elif filtro == 'semestre' %}
-      <div class="form-group" style="margin:0;">
-        <label class="form-label" style="font-size:.75rem;">Semestre</label>
-        <select name="semestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
-          <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
-          <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
-        </select>
-        <input type="hidden" name="filtro" value="semestre">
-      </div>
-      {% else %}
-      <input type="hidden" name="filtro" value="ano">
-      {% endif %}
-      <div class="form-group" style="margin:0;">
-        <label class="form-label" style="font-size:.75rem;">Ano</label>
-        <select name="ano" class="form-control" style="width:auto;" onchange="this.form.submit()">
-          {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-group" style="margin:0;">
-        <label class="form-label" style="font-size:.75rem;">Aluno</label>
-        <select name="aluno_id" class="form-control" style="width:auto;" onchange="this.form.submit()">
-          <option value="">Todos os alunos</option>
-          {% for a in alunos_todos %}<option value="{{ a.id }}" {% if aluno_id==a.id %}selected{% endif %}>{{ a.nome }}</option>{% endfor %}
-        </select>
-      </div>
-      <input type="hidden" name="filtro" value="{{ filtro }}">
-      <input type="hidden" name="mes" value="{{ mes }}">
-      <input type="hidden" name="bimestre" value="{{ bimestre }}">
-      <input type="hidden" name="semestre" value="{{ semestre }}">
-    </form>
-  </div>
-</div>
-
-<!-- Resumo consolidado -->
-<div class="card" style="margin-bottom:24px;">
-  <div class="card-header"><span class="card-title">Resumo Consolidado</span></div>
-  <div class="table-wrapper">
-    <table class="table">
-      <thead><tr><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas/Ausências</th><th style="min-width:200px;">% Frequência</th></tr></thead>
-      <tbody>
-        {% for aluno in alunos %}
-        {% set st = stats.get(aluno.id, (0,0,0,none)) %}
-        {% set total=st[0]; presentes=st[1]; faltas=st[2]; pct=st[3] %}
-        <tr>
-          <td class="fw-700">{{ aluno.nome }}</td>
-          <td>{{ total or '—' }}</td>
-          <td>{{ presentes if total else '—' }}</td>
-          <td>{% if total %}{% if faltas>0 %}<span class="badge badge-red">{{ faltas }}</span>{% else %}<span class="badge badge-green">0</span>{% endif %}{% else %}—{% endif %}</td>
-          <td>
-            {% if pct is not none %}
-              {% if pct>=75 %}{% set bc='freq-bar-green' %}{% set pc='freq-pct-green' %}
-              {% elif pct>=50 %}{% set bc='freq-bar-amber' %}{% set pc='freq-pct-amber' %}
-              {% else %}{% set bc='freq-bar-red' %}{% set pc='freq-pct-red' %}{% endif %}
-              <div class="freq-bar-wrap"><div class="freq-bar-fill {{ bc }}" style="width:{{ pct }}%;"></div></div>
-              <span class="freq-pct {{ pc }}">{{ pct }}%</span>
-              {% if pct < 75 %}<span class="badge badge-red" style="margin-left:4px;font-size:.6rem;">⚠ Abaixo de 75%</span>{% endif %}
-            {% else %}<span class="text-muted text-sm">Sem registros</span>{% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="5" class="empty-state">Nenhum aluno selecionado.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Detalhes por aluno -->
-<h3 style="font-size:1rem;font-weight:700;color:var(--navy-900);margin-bottom:16px;">Detalhes por Aluno</h3>
-{% for aluno in alunos %}
-{% set registros = freq_por_aluno.get(aluno.id, []) %}
-{% set st = stats.get(aluno.id, (0,0,0,none)) %}
-{% set total=st[0]; presentes=st[1]; faltas=st[2]; pct=st[3] %}
-<div class="aluno-card">
-  <div class="aluno-card-header">
-    <div class="aluno-card-nome">{{ aluno.nome }}</div>
-    <div class="aluno-card-stats">
-      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }} presentes</span>
-      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }} ausências</span>
-      {% if pct is not none %}
-        {% if pct>=75 %}{% set pc='freq-pct-green' %}{% elif pct>=50 %}{% set pc='freq-pct-amber' %}{% else %}{% set pc='freq-pct-red' %}{% endif %}
-        <span class="stat-pill {{ pc }}">{{ pct }}% frequência</span>
-      {% endif %}
+      <form method="GET" action="{{ url_for('planejamento.relatorio') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        {% if filtro == 'mes' %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Mês</label>
+          <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            {% for i,m in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],1) %}
+            <option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        {% elif filtro == 'bimestre' %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Bimestre</label>
+          <select name="bimestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
+          </select>
+        </div>
+        {% elif filtro == 'semestre' %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Semestre</label>
+          <select name="semestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
+            <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
+          </select>
+        </div>
+        {% endif %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Ano</label>
+          <select name="ano" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+        {% if turmas %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Turma</label>
+          <select name="turma_id" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="bimestre" value="{{ bimestre }}">
+        <input type="hidden" name="semestre" value="{{ semestre }}">
+      </form>
     </div>
   </div>
-  {% if registros %}
+</div>
+
+{% if planos %}
+<!-- Sumário -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><span class="card-title">Sumário</span></div>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>Data</th><th>Status</th><th>Observação</th></tr></thead>
+      <thead><tr><th>Data</th><th>Título</th><th>Turma</th><th>Bimestre</th></tr></thead>
       <tbody>
-        {% for f in registros|sort(attribute='data') %}
+        {% for p in planos %}
         <tr>
-          <td>{{ f.data.strftime('%d/%m/%Y') }}</td>
-          <td>
-            {% if f.status=='presente' %}<span class="badge badge-green">Presente</span>
-            {% elif f.status=='ausente' %}<span class="badge badge-red">Ausente</span>
-            {% elif f.status=='atestado' %}<span class="badge badge-amber">Atestado</span>
-            {% else %}<span class="badge badge-blue">Afastamento</span>{% endif %}
-          </td>
-          <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
+          <td class="text-sm">{{ p.data_aula.strftime('%d/%m/%Y') }}</td>
+          <td class="fw-700">{{ p.titulo }}</td>
+          <td class="text-sm text-muted">{{ p.turma.nome if p.turma else '—' }}</td>
+          <td>{% if p.bimestre %}<span class="badge badge-navy">{{ p.bimestre }}º Bim</span>{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}
-  <div class="empty-state" style="padding:20px;">Nenhum registro no período.</div>
-  {% endif %}
+</div>
+
+<!-- Detalhe por plano -->
+<h3 style="font-size:1rem;font-weight:700;color:var(--navy-900);margin-bottom:14px;">Detalhamento dos Planos</h3>
+{% for p in planos %}
+<div class="card" style="margin-bottom:16px;">
+  <div style="background:var(--navy-50);padding:14px 20px;border-bottom:1px solid var(--neutral-200);">
+    <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">{{ p.titulo }}</div>
+    <div style="font-size:.8125rem;color:var(--neutral-500);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap;">
+      <span>📅 {{ p.data_aula.strftime('%d/%m/%Y') }}</span>
+      {% if p.turma %}<span>🏫 {{ p.turma.nome }}</span>{% endif %}
+      {% if p.bimestre %}<span>📌 {{ p.bimestre }}º Bimestre</span>{% endif %}
+      {% if p.semestre %}<span>📌 {{ p.semestre }}º Semestre</span>{% endif %}
+    </div>
+  </div>
+  <div class="card-body">
+    {% for campo, titulo, icone in [
+      ('conteudo','Conteúdo / Objeto de Ensino','📖'),
+      ('objetivos','Objetivos','🎯'),
+      ('metodologia','Metodologia','🔧'),
+      ('recursos','Recursos Necessários','📦'),
+      ('avaliacao_descricao','Avaliação da Aprendizagem','📝'),
+    ] %}
+    {% set val = p[campo] if p[campo] is defined else none %}
+    {% if p|attr(campo) %}
+    <div style="margin-bottom:14px;">
+      <div style="font-size:.75rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">{{ icone }} {{ titulo }}</div>
+      <div style="font-size:.875rem;color:var(--neutral-700);line-height:1.6;">{{ p|attr(campo) }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
 </div>
 {% endfor %}
+{% else %}
+<div class="card"><div class="empty-state" style="padding:48px;">Nenhum plano no período selecionado.</div></div>
+{% endif %}
 {% endblock %}
