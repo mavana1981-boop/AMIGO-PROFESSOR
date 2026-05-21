@@ -3,6 +3,7 @@
 {% block page_title %}Planejamento de Aulas{% endblock %}
 {% block topbar_actions %}
   <a href="{{ url_for('planejamento.relatorio', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">📊 Relatório</a>
+  <a href="{{ url_for('planejamento.relatorio_calendario', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">📅 Calendário PDF</a>
   <a href="{{ url_for('planejamento.novo') }}" class="btn btn-accent btn-sm">+ Novo Plano</a>
 {% endblock %}
 {% block content %}
