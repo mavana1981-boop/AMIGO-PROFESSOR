@@ -1,60 +1,121 @@
 {% extends "base.html" %}
-{% block title %}{% if reg %}Editar Registro{% else %}Novo Registro Pedagógico{% endif %}{% endblock %}
-{% block page_title %}{% if reg %}Editar Registro{% else %}Novo Registro Pedagógico{% endif %}{% endblock %}
+{% block title %}{% if registro %}Editar Registro{% else %}Novo Registro Pedagógico{% endif %}{% endblock %}
+{% block page_title %}{% if registro %}Editar Registro{% else %}Novo Registro Pedagógico{% endif %}{% endblock %}
 {% block content %}
-<div style="max-width:640px;">
-  <form method="POST"><div class="card"><div class="card-body">
+<div style="max-width:700px;">
+<form method="POST">
+  <div class="card">
+    <div class="card-body">
 
-    <div class="form-row form-row-2">
-      <div class="form-group"><label class="form-label">Aluno *</label>
-        <select class="form-control" name="aluno_id" required>
-          <option value="">— Selecionar aluno —</option>
-          {% for a in alunos %}
-          <option value="{{ a.id }}"
-            {% if (reg and reg.aluno_id == a.id) or (not reg and aluno_id == a.id) %}selected{% endif %}>
-            {{ a.nome }} ({{ a.turma.nome }})
-          </option>
+      <!-- Destinatário -->
+      <div class="form-group">
+        <label class="form-label">Destinatário *</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <button type="button" id="btn-aluno" class="filter-chip active" onclick="setDest('aluno')">👤 Aluno Específico</button>
+          <button type="button" id="btn-turma" class="filter-chip" onclick="setDest('turma')">🏫 Toda a Turma</button>
+        </div>
+
+        <!-- Aluno específico -->
+        <div id="bloco-aluno">
+          <select name="aluno_id" id="sel-aluno" class="form-control">
+            <option value="">— Selecionar aluno —</option>
+            {% for a in alunos %}
+            <option value="{{ a.id }}"
+              {% if registro and registro.aluno_id==a.id %}selected
+              {% elif not registro and aluno_id==a.id %}selected{% endif %}>
+              {{ a.nome }} ({{ a.turma.nome }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Toda a turma -->
+        <div id="bloco-turma" style="display:none;">
+          <select name="turma_id_form" id="sel-turma" class="form-control">
+            <option value="">— Selecionar turma —</option>
+            {% for t in turmas %}
+            <option value="{{ t.id }}"
+              {% if registro and registro.turma_id==t.id %}selected
+              {% elif not registro and turma_id_pre==t.id %}selected{% endif %}>
+              {{ t.nome }}
+            </option>
+            {% endfor %}
+          </select>
+          <p class="text-muted text-sm" style="margin-top:6px;">O registro será vinculado à turma inteira, não a um aluno específico.</p>
+        </div>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input type="date" name="data" class="form-control" required
+            value="{{ registro.data.strftime('%Y-%m-%d') if registro else today.strftime('%Y-%m-%d') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <select name="tipo" class="form-control">
+            {% set tipos = [
+              ('atividade_turma','📚 Atividade de Turma'),
+              ('aprendizado','✅ Aprendizado'),
+              ('carencia','⚠ Carência'),
+              ('encaminhamento','🔀 Encaminhamento'),
+              ('observacao','📝 Observação'),
+            ] %}
+            {% for v,l in tipos %}
+            <option value="{{ v }}" {% if registro and registro.tipo==v %}selected{% elif not registro and v=='observacao' %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição *</label>
+        <textarea name="descricao" class="form-control" rows="4" required style="resize:vertical;">{{ registro.descricao if registro else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Encaminhamento / Ação</label>
+        <textarea name="encaminhamento" class="form-control" rows="2" style="resize:vertical;">{{ registro.encaminhamento if registro else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-control" style="width:auto;">
+          {% for v,l in [('aberto','Aberto'),('em_andamento','Em andamento'),('concluido','Concluído')] %}
+          <option value="{{ v }}" {% if registro and registro.status==v %}selected{% elif not registro and v=='aberto' %}selected{% endif %}>{{ l }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="form-group"><label class="form-label">Data *</label>
-        <input class="form-control" type="date" name="data" required
-               value="{{ reg.data.isoformat() if reg else '' }}" />
-      </div>
     </div>
+  </div>
 
-    <div class="form-row form-row-2">
-      <div class="form-group"><label class="form-label">Tipo de Registro</label>
-        <select class="form-control" name="tipo">
-          <option value="aprendizado" {% if reg and reg.tipo=='aprendizado' %}selected{% endif %}>Aprendizado</option>
-          <option value="carencia" {% if reg and reg.tipo=='carencia' %}selected{% endif %}>Carência / Dificuldade</option>
-          <option value="encaminhamento" {% if reg and reg.tipo=='encaminhamento' %}selected{% endif %}>Encaminhamento</option>
-        </select>
-      </div>
-      <div class="form-group"><label class="form-label">Status</label>
-        <select class="form-control" name="status">
-          <option value="aberto" {% if not reg or reg.status=='aberto' %}selected{% endif %}>Aberto</option>
-          <option value="em andamento" {% if reg and reg.status=='em andamento' %}selected{% endif %}>Em andamento</option>
-          <option value="concluído" {% if reg and reg.status=='concluído' %}selected{% endif %}>Concluído</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="form-group"><label class="form-label">Descrição *</label>
-      <textarea class="form-control" name="descricao" required rows="5"
-                placeholder="Descreva a situação pedagógica do aluno...">{{ reg.descricao if reg else '' }}</textarea>
-    </div>
-
-    <div class="form-group"><label class="form-label">Encaminhamento</label>
-      <input class="form-control" name="encaminhamento"
-             placeholder="Ex.: Psicólogo, Fonoaudiólogo, Reforço escolar..."
-             value="{{ reg.encaminhamento if reg else '' }}" />
-    </div>
-
-    <div class="form-actions" style="border:none;">
-      <button type="submit" class="btn btn-primary">{% if reg %}Salvar{% else %}Salvar Registro{% endif %}</button>
-      <a href="{{ url_for('pedagogico.index') }}" class="btn btn-outline">Cancelar</a>
-    </div>
-  </div></div></form>
+  <div class="d-flex gap-3" style="margin-top:16px;">
+    <button type="submit" class="btn btn-primary" style="padding:12px 28px;">
+      {% if registro %}Salvar Alterações{% else %}Salvar Registro{% endif %}
+    </button>
+    <a href="{{ url_for('pedagogico.index') }}" class="btn btn-outline">Cancelar</a>
+  </div>
+</form>
 </div>
+
+<script>
+var dest = '{% if registro and registro.turma_id %}turma{% else %}aluno{% endif %}';
+
+function setDest(d) {
+  dest = d;
+  document.getElementById('bloco-aluno').style.display = d==='aluno'?'':'none';
+  document.getElementById('bloco-turma').style.display = d==='turma'?'':'none';
+  document.getElementById('btn-aluno').classList.toggle('active', d==='aluno');
+  document.getElementById('btn-turma').classList.toggle('active', d==='turma');
+  // limpar seletores não usados
+  if (d==='turma') document.getElementById('sel-aluno').value='';
+  else document.getElementById('sel-turma').value='';
+}
+
+// Init
+setDest(dest);
+</script>
+{% endblock %}
+{% block extra_py %}
+{% set today = today %}
 {% endblock %}
