@@ -2,16 +2,14 @@
 {% block title %}Relatório de Frequência{% endblock %}
 {% block page_title %}Relatório — {{ turma.nome }}{% endblock %}
 {% block topbar_actions %}
-  <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-accent btn-sm">⬇ Baixar PDF</a>
+  <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-accent btn-sm">⬇ PDF Resumo</a>
+  <a href="{{ url_for('frequencia.relatorio_calendario', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-outline btn-sm">📅 PDF Calendário</a>
   <a href="{{ url_for('frequencia.historico', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-outline btn-sm">← Voltar</a>
 {% endblock %}
 {% block extra_css %}
 <style>
 .freq-bar-wrap{width:100px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
 .freq-bar-fill{height:100%;border-radius:999px;}
-.pct-green{color:var(--sage-600);font-weight:700;}
-.pct-amber{color:#92400e;font-weight:700;}
-.pct-red{color:var(--rose-500);font-weight:700;}
 .aluno-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:16px;overflow:hidden;}
 .aluno-card-header{padding:14px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 .stat-pill{background:white;border:1px solid var(--neutral-200);border-radius:8px;padding:3px 10px;font-size:.8rem;font-weight:600;}
@@ -19,40 +17,34 @@
 {% endblock %}
 {% block content %}
 
-<!-- Cabeçalho do período -->
-<div style="background:var(--navy-900);color:white;border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-  <div>
-    <div style="font-size:1.125rem;font-weight:800;">{{ turma.nome }}</div>
-    <div style="font-size:.875rem;opacity:.7;margin-top:2px;">Período: {{ periodo_label }}</div>
-  </div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;">
-    <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 14px;text-align:center;">
-      <div style="font-size:1.25rem;font-weight:800;">{{ alunos|length }}</div>
-      <div style="font-size:.7rem;opacity:.6;">Alunos</div>
-    </div>
-  </div>
+<div style="background:var(--navy-900);color:white;border-radius:12px;padding:18px 24px;margin-bottom:20px;">
+  <div style="font-size:1.1rem;font-weight:800;">{{ turma.nome }} — {{ periodo_label }}</div>
+  <div style="font-size:.825rem;opacity:.7;margin-top:2px;">{{ alunos|length }} aluno(s) selecionado(s)</div>
 </div>
 
 <!-- Filtros -->
 <div class="card" style="margin-bottom:20px;">
   <div class="card-body" style="padding:14px 20px;">
-    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;">
       <div>
         <div class="form-label" style="font-size:.75rem;margin-bottom:6px;">Período</div>
         <div style="display:flex;gap:4px;">
           {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
           <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, filtro=f, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}"
-             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 14px;">{{ lbl }}</a>
+             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 12px;">{{ lbl }}</a>
           {% endfor %}
         </div>
       </div>
       <form method="GET" action="{{ url_for('frequencia.relatorio', turma_id=turma.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
         <input type="hidden" name="filtro" value="{{ filtro }}">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="bimestre" value="{{ bimestre }}">
+        <input type="hidden" name="semestre" value="{{ semestre }}">
         {% if filtro == 'mes' %}
         <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Mês</label>
           <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for i,m in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],1) %}
-            <option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ m }}</option>{% endfor %}
+            {% set mn=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
+            {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ mn[i-1] }}</option>{% endfor %}
           </select>
         </div>
         {% elif filtro == 'bimestre' %}
@@ -80,28 +72,28 @@
             {% for a in alunos_todos %}<option value="{{ a.id }}" {% if aluno_id==a.id %}selected{% endif %}>{{ a.nome }}</option>{% endfor %}
           </select>
         </div>
-        <input type="hidden" name="mes" value="{{ mes }}">
-        <input type="hidden" name="bimestre" value="{{ bimestre }}">
-        <input type="hidden" name="semestre" value="{{ semestre }}">
       </form>
     </div>
   </div>
 </div>
 
-<!-- Tabela resumo -->
+<!-- Resumo com barras -->
 <div class="card" style="margin-bottom:24px;">
-  <div class="card-header"><span class="card-title">Resumo de Frequência</span></div>
+  <div class="card-header">
+    <span class="card-title">📊 Resumo de Frequência</span>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-accent btn-sm">⬇ PDF Resumo</a>
+      <a href="{{ url_for('frequencia.relatorio_calendario', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-outline btn-sm">📅 Calendário PDF</a>
+    </div>
+  </div>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:200px;">% Frequência</th></tr></thead>
+      <thead><tr><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:220px;">% Frequência</th></tr></thead>
       <tbody>
         {% for aluno in alunos %}
         {% set st = stats.get(aluno.id) %}
-        {% if st %}
-          {% set total = st[0] %}{% set presentes = st[1] %}{% set faltas = st[2] %}{% set pct = st[3] %}
-        {% else %}
-          {% set total = 0 %}{% set presentes = 0 %}{% set faltas = 0 %}{% set pct = none %}
-        {% endif %}
+        {% if st %}{% set total=st[0] %}{% set presentes=st[1] %}{% set faltas=st[2] %}{% set pct=st[3] %}
+        {% else %}{% set total=0 %}{% set presentes=0 %}{% set faltas=0 %}{% set pct=none %}{% endif %}
         <tr>
           <td class="fw-700">{{ aluno.nome }}</td>
           <td>{{ total if total > 0 else '—' }}</td>
@@ -111,21 +103,20 @@
             {% if pct is not none %}
               {% if pct >= 75 %}
                 <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--sage-500);"></div></div>
-                <span class="pct-green" style="margin-left:8px;">{{ pct }}%</span>
+                <span style="margin-left:8px;color:var(--sage-600);font-weight:700;font-size:.85rem;">{{ pct }}%</span>
               {% elif pct >= 50 %}
                 <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--amber-500);"></div></div>
-                <span class="pct-amber" style="margin-left:8px;">{{ pct }}%</span>
+                <span style="margin-left:8px;color:#92400e;font-weight:700;font-size:.85rem;">{{ pct }}%</span>
                 <span class="badge badge-amber" style="font-size:.6rem;margin-left:4px;">Atenção</span>
               {% else %}
                 <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--rose-500);"></div></div>
-                <span class="pct-red" style="margin-left:8px;">{{ pct }}%</span>
+                <span style="margin-left:8px;color:var(--rose-500);font-weight:700;font-size:.85rem;">{{ pct }}%</span>
                 <span class="badge badge-red" style="font-size:.6rem;margin-left:4px;">⚠ Crítico</span>
               {% endif %}
             {% else %}<span class="text-muted text-sm">Sem registros</span>{% endif %}
           </td>
         </tr>
-        {% else %}
-        <tr><td colspan="5" class="empty-state">Nenhum aluno.</td></tr>
+        {% else %}<tr><td colspan="5" class="empty-state">Nenhum aluno.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -143,12 +134,12 @@
   <div class="aluno-card-header">
     <div style="font-weight:700;font-size:.9375rem;color:var(--navy-900);">{{ aluno.nome }}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }} presentes</span>
-      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }} faltas</span>
+      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }}</span>
+      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }}</span>
       {% if pct is not none %}
-        {% if pct>=75 %}<span class="stat-pill pct-green">{{ pct }}% freq.</span>
-        {% elif pct>=50 %}<span class="stat-pill pct-amber">{{ pct }}% freq.</span>
-        {% else %}<span class="stat-pill pct-red">{{ pct }}% freq. ⚠</span>{% endif %}
+        {% if pct>=75 %}<span class="stat-pill" style="color:var(--sage-600);">{{ pct }}%</span>
+        {% elif pct>=50 %}<span class="stat-pill" style="color:#92400e;">{{ pct }}%</span>
+        {% else %}<span class="stat-pill" style="color:var(--rose-500);">{{ pct }}% ⚠</span>{% endif %}
       {% endif %}
     </div>
   </div>
@@ -160,19 +151,17 @@
         {% for f in registros|sort(attribute='data') %}
         <tr>
           <td>{{ f.data.strftime('%d/%m/%Y') }}</td>
-          <td>{% if f.status=='presente' %}<span class="badge badge-green">Presente</span>
-          {% elif f.status=='ausente' %}<span class="badge badge-red">Ausente</span>
-          {% elif f.status=='atestado' %}<span class="badge badge-amber">Atestado</span>
-          {% else %}<span class="badge badge-blue">Afastamento</span>{% endif %}</td>
+          <td>{% if f.status=='presente' %}<span class="badge badge-green">✅ Presente</span>
+          {% elif f.status=='ausente' %}<span class="badge badge-red">❌ Ausente</span>
+          {% elif f.status=='atestado' %}<span class="badge badge-amber">📄 Atestado</span>
+          {% else %}<span class="badge badge-blue">🔵 Afastamento</span>{% endif %}</td>
           <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}
-  <div class="empty-state" style="padding:16px;">Nenhum registro no período.</div>
-  {% endif %}
+  {% else %}<div class="empty-state" style="padding:16px;">Sem registros no período.</div>{% endif %}
 </div>
 {% endfor %}
 {% endblock %}
