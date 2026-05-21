@@ -2,77 +2,86 @@
 {% block title %}Frequência — {{ turma.nome }}{% endblock %}
 {% block page_title %}Frequência — {{ turma.nome }}{% endblock %}
 {% block topbar_actions %}
-  <a href="{{ url_for('frequencia.registrar', turma_id=turma.id) }}" class="btn btn-primary btn-sm">+ Registrar</a>
-  <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-accent btn-sm">📊 Relatório</a>
+  <a href="{{ url_for('frequencia.registrar', turma_id=turma.id) }}" class="btn btn-primary btn-sm">✅ Registrar</a>
+  <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-accent btn-sm">📄 Relatório PDF</a>
 {% endblock %}
 {% block extra_css %}
 <style>
-.freq-bar-wrap{width:110px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
-.freq-bar-fill{height:100%;border-radius:999px;}
-.pct-green{color:var(--sage-600);font-weight:700;}
-.pct-amber{color:#92400e;font-weight:700;}
-.pct-red{color:var(--rose-500);font-weight:700;}
-.filter-tabs{display:flex;gap:4px;}
+.bar-wrap{display:inline-flex;align-items:center;gap:8px;vertical-align:middle;}
+.bar-bg{width:120px;height:11px;background:var(--neutral-200);border-radius:999px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:999px;}
+.pct{font-size:.85rem;font-weight:700;min-width:42px;}
+.c-green{color:var(--sage-600);}
+.c-amber{color:#92400e;}
+.c-red{color:var(--rose-500);}
+.bg-green{background:var(--sage-500);}
+.bg-amber{background:var(--amber-500);}
+.bg-red{background:var(--rose-500);}
 </style>
 {% endblock %}
 {% block content %}
 
 <!-- Filtros -->
-<div class="card" style="margin-bottom:20px;">
+<div class="card" style="margin-bottom:18px;">
   <div class="card-body" style="padding:14px 20px;">
-    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;">
+
+      <!-- Abas de período -->
       <div>
-        <div class="form-label" style="font-size:.75rem;margin-bottom:6px;">Período</div>
-        <div class="filter-tabs">
+        <div style="font-size:.72rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Período</div>
+        <div style="display:flex;gap:3px;">
           {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
           <a href="{{ url_for('frequencia.historico', turma_id=turma.id, filtro=f, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}"
-             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 14px;">{{ lbl }}</a>
+             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 13px;">{{ lbl }}</a>
           {% endfor %}
         </div>
       </div>
 
-      <form method="GET" action="{{ url_for('frequencia.historico', turma_id=turma.id) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+      <!-- Seletores dinâmicos -->
+      <form method="GET" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
         <input type="hidden" name="filtro" value="{{ filtro }}">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="bimestre" value="{{ bimestre }}">
+        <input type="hidden" name="semestre" value="{{ semestre }}">
+
         {% if filtro == 'mes' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">Mês</label>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Mês</div>
           <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for i,m in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],1) %}
+            {% for i,m in [(1,'Janeiro'),(2,'Fevereiro'),(3,'Março'),(4,'Abril'),(5,'Maio'),(6,'Junho'),(7,'Julho'),(8,'Agosto'),(9,'Setembro'),(10,'Outubro'),(11,'Novembro'),(12,'Dezembro')] %}
             <option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
           </select>
         </div>
         {% elif filtro == 'bimestre' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">Bimestre</label>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Bimestre</div>
           <select name="bimestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
+            {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
           </select>
         </div>
         {% elif filtro == 'semestre' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">Semestre</label>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Semestre</div>
           <select name="semestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
-            <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
+            <option value="1" {% if semestre==1 %}selected{% endif %}>1º Semestre</option>
+            <option value="2" {% if semestre==2 %}selected{% endif %}>2º Semestre</option>
           </select>
         </div>
         {% endif %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">Ano</label>
+
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Ano</div>
           <select name="ano" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
+            {% for y in [2024,2025,2026,2027] %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
           </select>
         </div>
-        <input type="hidden" name="mes" value="{{ mes }}">
-        <input type="hidden" name="bimestre" value="{{ bimestre }}">
-        <input type="hidden" name="semestre" value="{{ semestre }}">
       </form>
     </div>
   </div>
 </div>
 
-<!-- Barras de frequência por aluno -->
+<!-- Barras de frequência -->
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">
     <span class="card-title">📊 Frequência por Aluno</span>
@@ -81,57 +90,63 @@
   <div class="table-wrapper">
     <table class="table">
       <thead>
-        <tr><th>#</th><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:220px;">% Frequência</th><th>Ações</th></tr>
+        <tr><th>#</th><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:240px;">% Frequência</th><th>Detalhes</th></tr>
       </thead>
       <tbody>
         {% for aluno in alunos %}
-        {% set st = stats.get(aluno.id) %}
-        {% if st %}
-          {% set total = st[0] %}
-          {% set presentes = st[1] %}
-          {% set faltas = st[2] %}
-          {% set pct = st[3] %}
-        {% else %}
-          {% set total = 0 %}
-          {% set presentes = 0 %}
-          {% set faltas = 0 %}
-          {% set pct = none %}
-        {% endif %}
-        <tr>
-          <td class="text-muted">{{ loop.index }}</td>
-          <td class="fw-700">{{ aluno.nome }}</td>
-          <td>{{ total if total > 0 else '—' }}</td>
-          <td>{{ presentes if total > 0 else '—' }}</td>
-          <td>
-            {% if total > 0 %}
-              {% if faltas > 0 %}<span class="badge badge-red">{{ faltas }}</span>
-              {% else %}<span class="badge badge-green">0</span>{% endif %}
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            {% if pct is not none %}
-              {% if pct >= 75 %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--sage-500);"></div></div>
-                <span class="pct-green" style="margin-left:8px;">{{ pct }}%</span>
-              {% elif pct >= 50 %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--amber-500);"></div></div>
-                <span class="pct-amber" style="margin-left:8px;">{{ pct }}%</span>
-                <span class="badge badge-amber" style="margin-left:4px;font-size:.6rem;">Atenção</span>
+          {% if stats and aluno.id in stats %}
+            {% set st = stats[aluno.id] %}
+            {% set total = st[0] %}
+            {% set presentes = st[1] %}
+            {% set faltas = st[2] %}
+            {% set pct = st[3] %}
+          {% else %}
+            {% set total = 0 %}
+            {% set presentes = 0 %}
+            {% set faltas = 0 %}
+            {% set pct = none %}
+          {% endif %}
+          <tr>
+            <td class="text-muted">{{ loop.index }}</td>
+            <td class="fw-700">{{ aluno.nome }}</td>
+            <td>{{ total if total > 0 else '—' }}</td>
+            <td>{{ presentes if total > 0 else '—' }}</td>
+            <td>
+              {% if total > 0 %}
+                {% if faltas > 0 %}<span class="badge badge-red">{{ faltas }}</span>
+                {% else %}<span class="badge badge-green">0</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if pct is not none %}
+                {% if pct >= 75 %}
+                  <div class="bar-wrap">
+                    <div class="bar-bg"><div class="bar-fill bg-green" style="width:{{ pct }}%;"></div></div>
+                    <span class="pct c-green">{{ pct }}%</span>
+                  </div>
+                {% elif pct >= 50 %}
+                  <div class="bar-wrap">
+                    <div class="bar-bg"><div class="bar-fill bg-amber" style="width:{{ pct }}%;"></div></div>
+                    <span class="pct c-amber">{{ pct }}%</span>
+                    <span class="badge badge-amber" style="font-size:.6rem;">Atenção</span>
+                  </div>
+                {% else %}
+                  <div class="bar-wrap">
+                    <div class="bar-bg"><div class="bar-fill bg-red" style="width:{{ pct }}%;"></div></div>
+                    <span class="pct c-red">{{ pct }}%</span>
+                    <span class="badge badge-red" style="font-size:.6rem;">⚠ Crítico</span>
+                  </div>
+                {% endif %}
               {% else %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--rose-500);"></div></div>
-                <span class="pct-red" style="margin-left:8px;">{{ pct }}%</span>
-                <span class="badge badge-red" style="margin-left:4px;font-size:.6rem;">⚠ Crítico</span>
+                <span class="text-muted text-sm">Sem registros</span>
               {% endif %}
-            {% else %}
-              <span class="text-muted text-sm">Sem registros</span>
-            {% endif %}
-          </td>
-          <td>
-            <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, aluno_id=aluno.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-outline btn-sm">Detalhes</a>
-          </td>
-        </tr>
+            </td>
+            <td>
+              <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, aluno_id=aluno.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-outline btn-sm">Ver</a>
+            </td>
+          </tr>
         {% else %}
-        <tr><td colspan="7" class="empty-state">Nenhum aluno cadastrado.</td></tr>
+          <tr><td colspan="7" class="empty-state">Nenhum aluno cadastrado nesta turma.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -140,7 +155,7 @@
 
 <!-- Registros do período -->
 <div class="card">
-  <div class="card-header"><span class="card-title">📋 Todos os Registros do Período</span></div>
+  <div class="card-header"><span class="card-title">📋 Registros do Período</span></div>
   <div class="table-wrapper">
     <table class="table">
       <thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Observação</th></tr></thead>
@@ -158,7 +173,7 @@
           <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="empty-state">Nenhum registro no período selecionado.</td></tr>
+        <tr><td colspan="4" class="empty-state">Nenhum registro no período.</td></tr>
         {% endfor %}
       </tbody>
     </table>
