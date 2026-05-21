@@ -1,44 +1,99 @@
 {% extends "base.html" %}
-{% block title %}Planejamento de Aula{% endblock %}
-{% block page_title %}Planejamento{% endblock %}
-{% block topbar_actions %}<a href="{{ url_for('planejamento.novo') }}" class="btn btn-accent btn-sm">+ Novo Plano</a>{% endblock %}
+{% block title %}Planejamento{% endblock %}
+{% block page_title %}Planejamento de Aulas{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('planejamento.relatorio', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">📊 Relatório</a>
+  <a href="{{ url_for('planejamento.novo') }}" class="btn btn-accent btn-sm">+ Novo Plano</a>
+{% endblock %}
 {% block content %}
-<div class="page-header">
-  <div class="page-header-left"><h2>Planejamento de Aula</h2><p>Gerencie seus planos de aula com filtros de período</p></div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-body" style="padding:14px 20px;">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
+      <div>
+        <div class="form-label" style="font-size:.75rem;margin-bottom:6px;">Período</div>
+        <div style="display:flex;gap:4px;">
+          {% for f,lbl in [('semana','Semana'),('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
+          <a href="{{ url_for('planejamento.index', filtro=f, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}"
+             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 12px;font-size:.8rem;">{{ lbl }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <form method="GET" action="{{ url_for('planejamento.index') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        {% if filtro == 'mes' %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Mês</label>
+          <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            {% for i,m in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],1) %}
+            <option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        {% elif filtro == 'bimestre' %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Bimestre</label>
+          <select name="bimestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
+          </select>
+        </div>
+        {% elif filtro == 'semestre' %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Semestre</label>
+          <select name="semestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
+            <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
+          </select>
+        </div>
+        {% endif %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Ano</label>
+          <select name="ano" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+        {% if turmas %}
+        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Turma</label>
+          <select name="turma_id" class="form-control" style="width:auto;" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="bimestre" value="{{ bimestre }}">
+        <input type="hidden" name="semestre" value="{{ semestre }}">
+      </form>
+    </div>
+  </div>
 </div>
-<div class="filters-bar">
-  {% for f,label in [('semana','Esta Semana'),('mes','Este Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
-  <a href="?filtro={{ f }}" class="filter-chip {% if filtro==f %}active{% endif %}">{{ label }}</a>
-  {% endfor %}
-  {% if turmas %}
-  <select onchange="location='?filtro={{ filtro }}&turma_id='+this.value" class="form-control" style="width:auto;padding:6px 12px;font-size:.8125rem;">
-    <option value="">Todas as turmas</option>
-    {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-  </select>
-  {% endif %}
-</div>
+
+<!-- Lista de planos -->
 <div class="card">
+  <div class="card-header">
+    <span class="card-title">{{ planos|length }} plano(s) no período</span>
+    <a href="{{ url_for('planejamento.relatorio_pdf', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">⬇ PDF</a>
+  </div>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>Título</th><th>Turma</th><th>Data</th><th>Bimestre</th><th>Semestre</th><th>Ações</th></tr></thead>
+      <thead><tr><th>Data</th><th>Título</th><th>Turma</th><th>Bimestre</th><th>Semestre</th><th>Ações</th></tr></thead>
       <tbody>
         {% for p in planos %}
         <tr>
+          <td class="text-sm">{{ p.data_aula.strftime('%d/%m/%Y') }}</td>
           <td class="fw-700">{{ p.titulo }}</td>
-          <td>{{ p.turma.nome if p.turma else '—' }}</td>
-          <td>{{ p.data_aula.strftime('%d/%m/%Y') }}</td>
+          <td class="text-sm text-muted">{{ p.turma.nome if p.turma else '—' }}</td>
           <td>{% if p.bimestre %}<span class="badge badge-navy">{{ p.bimestre }}º Bim</span>{% else %}—{% endif %}</td>
           <td>{% if p.semestre %}<span class="badge badge-blue">{{ p.semestre }}º Sem</span>{% else %}—{% endif %}</td>
           <td>
             <div class="d-flex gap-2">
               <a href="{{ url_for('planejamento.editar', id=p.id) }}" class="btn btn-outline btn-sm">Editar</a>
-              <form method="POST" action="{{ url_for('planejamento.excluir', id=p.id) }}" data-confirm="Excluir este plano de aula?">
-                <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+              <form method="POST" action="{{ url_for('planejamento.excluir', id=p.id) }}" data-confirm="Excluir este plano?">
+                <button type="submit" class="btn btn-danger btn-sm">✕</button>
               </form>
             </div>
           </td>
         </tr>
-        {% else %}<tr><td colspan="6" class="empty-state">Nenhum plano para o período selecionado.</td></tr>{% endfor %}
+        {% else %}
+        <tr><td colspan="6" class="empty-state">Nenhum plano no período. <a href="{{ url_for('planejamento.novo') }}">Criar novo</a></td></tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
