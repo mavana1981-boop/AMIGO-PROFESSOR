@@ -66,6 +66,7 @@
     <div class="mbody" id="regBody"></div>
     <div class="mfoot">
       <button onclick="fecharModal('modalReg')" class="btn btn-outline btn-sm">Fechar</button>
+      <button onclick="excluirReg()" class="btn btn-danger btn-sm">🗑 Excluir</button>
       <a id="regEditar" href="#" class="btn btn-primary btn-sm">✏ Editar</a>
     </div>
   </div>
@@ -156,8 +157,10 @@ function renderizar(ano,mes){
 function mudarMes(d){mesAtual+=d;if(mesAtual>12){mesAtual=1;anoAtual++;}if(mesAtual<1){mesAtual=12;anoAtual--;}carregar(anoAtual,mesAtual);}
 function irHoje(){anoAtual=HOJE.ano;mesAtual=HOJE.mes;carregar(anoAtual,mesAtual);}
 function trocarTurma(){carregar(anoAtual,mesAtual);}
+let regAtualId=null;
 function abrirReg(id){
   const r=regs.find(x=>x.id===id); if(!r) return;
+  regAtualId=id;
   document.getElementById('regTitulo').textContent=r.aluno||r.tipo;
   document.getElementById('regEditar').href=`/pedagogico/editar/${id}`;
   document.getElementById('regBody').innerHTML=`
@@ -197,6 +200,11 @@ function gerarRel(){
   if(tid) params+=`&turma_id=${tid}`;
   fecharModal('modalRel');
   window.location.href=`/pedagogico/relatorio-preview?${params}`;
+}
+function excluirReg() {
+  if (!regAtualId || !confirm('Excluir este registro permanentemente?')) return;
+  fetch(`/pedagogico/excluir/${regAtualId}`, {method:'POST'})
+    .then(()=>{ fecharModal('modalReg'); carregar(anoAtual,mesAtual); });
 }
 function fecharModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
