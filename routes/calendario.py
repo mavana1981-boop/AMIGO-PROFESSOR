@@ -128,11 +128,20 @@ def importar():
         try:
             eventos_extraidos = _extrair_eventos_com_claude(pdf_b64, ano_letivo)
         except Exception as e:
+            import traceback
             erro = str(e)
+            detalhe = traceback.format_exc()
+            current_app.logger.error(f"Erro importar calendário: {detalhe}")
             if "403" in erro or "API_KEY" in erro or "GEMINI_API_KEY" in erro:
-                flash("Erro de autenticação com o Gemini. Verifique se a variável GEMINI_API_KEY está correta no Railway.", "danger")
+                flash("Erro de autenticação com o Gemini (403). Verifique a variável GEMINI_API_KEY no Railway.", "danger")
+            elif "404" in erro:
+                flash(f"Modelo Gemini não encontrado (404): {erro}", "danger")
+            elif "429" in erro:
+                flash("Limite de requisições do Gemini atingido (429). Aguarde alguns minutos e tente novamente.", "danger")
+            elif "JSONDecodeError" in detalhe or "json" in detalhe.lower():
+                flash("O Gemini retornou uma resposta inválida. Tente novamente ou use um PDF diferente.", "danger")
             else:
-                flash(f"Erro ao processar PDF: {erro}", "danger")
+                flash(f"Erro: {erro}", "danger")
             return redirect(url_for("calendario.importar"))
 
         # Guarda na sessão para confirmação
@@ -199,86 +208,101 @@ def confirmar_importacao():
 
 def _extrair_eventos_com_claude(pdf_b64: str, ano_letivo: str) -> list[dict]:
     """Envia o PDF para a API do Gemini e retorna lista de eventos JSON."""
-    import urllib.request, urllib.error, json as _json, os, base64
+    import urllib.request, urllib.error, json as _json, os
 
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
-        raise ValueError("GEMINI_API_KEY não configurada nas variáveis de ambiente do Railway.")
+        raise ValueError("GEMINI_API_KEY não configurada. Adicione a variável no Railway → Settings → Variables.")
 
-    prompt = f"""Você está analisando o calendário escolar letivo de {ano_letivo} da SEEDF (Secretaria de Estado de Educação do Distrito Federal) ou de outra escola brasileira.
+    prompt = (
+        f"Analise este calendário escolar letivo de {ano_letivo} da SEEDF ou escola brasileira. "
+        "Extraia TODOS os eventos: feriados, recessos, reuniões, comemorações, dias especiais. "
+        "Responda APENAS com um array JSON puro, sem markdown, sem texto antes ou depois. "
+        "Cada item deve ter: titulo (string), data_inicio (YYYY-MM-DD), data_fim (YYYY-MM-DD ou igual a data_inicio), "
+        f"tipo (feriado|recesso|reuniao|prova|evento|comemorativo|outro), descricao (string). "
+        f"Se o ano não estiver explícito use {ano_letivo}. Não omita nenhum evento visível."
+    )
 
-Extraia TODOS os eventos, feriados, recessos, reuniões, provas, comemorações e dias especiais que encontrar.
-
-Retorne SOMENTE um array JSON válido, sem texto extra, sem markdown, sem explicações, sem blocos de código.
-
-Cada objeto deve ter exatamente estes campos:
-{{
-  "titulo": "nome do evento",
-  "data_inicio": "YYYY-MM-DD",
-  "data_fim": "YYYY-MM-DD ou vazio se evento de 1 dia",
-  "tipo": "feriado|recesso|reuniao|prova|evento|aula|comemorativo|outro",
-  "descricao": "descrição breve ou vazio"
-}}
-
-Regras:
-- Se um evento ocupa vários dias, use data_fim diferente de data_inicio
-- Se for 1 dia, deixe data_fim vazio ou igual a data_inicio
-- tipo deve ser EXATAMENTE uma das opções listadas
-- Datas no formato YYYY-MM-DD obrigatoriamente
-- Se o ano não estiver explícito, use {ano_letivo}
-- Inclua TODOS os eventos visíveis no PDF, não pule nenhum
-- Priorize: feriados nacionais, recessos, semanas pedagógicas, Conselhos de Classe, dia do professor, comemorações cívicas"""
-
-    def _chamar_gemini(model, partes):
-        url     = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = _json.dumps({
-            "contents": [{"parts": partes}],
-            "generationConfig": {"temperature": 0, "maxOutputTokens": 8192},
-        }).encode()
+    def _post(url, body):
         req = urllib.request.Request(
-            url, data=payload,
+            url, data=_json.dumps(body).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=120) as resp:
             return _json.loads(resp.read())
 
-    # Tenta modelos em ordem de preferência
-    modelos = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
-    partes_pdf = [
-        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}},
-        {"text": prompt},
-    ]
+    def _url(model):
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
-    data = None
-    ultimo_erro = None
+    modelos = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    data       = None
+    ultimo_erro = ""
+
     for modelo in modelos:
+        body = {
+            "contents": [{"parts": [
+                {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}},
+                {"text": prompt},
+            ]}],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 8192},
+        }
         try:
-            data = _chamar_gemini(modelo, partes_pdf)
-            break
+            data = _post(_url(modelo), body)
+            if "candidates" in data:
+                break
+            ultimo_erro = f"Resposta sem candidates no modelo {modelo}: {str(data)[:200]}"
+            data = None
         except urllib.error.HTTPError as e:
-            ultimo_erro = f"HTTP {e.code} no modelo {modelo}: {e.read().decode()[:200]}"
-            continue
+            corpo = e.read().decode("utf-8", errors="replace")[:300]
+            ultimo_erro = f"HTTP {e.code} no modelo {modelo}: {corpo}"
+            data = None
         except Exception as e:
-            ultimo_erro = str(e)
-            continue
+            ultimo_erro = f"Erro no modelo {modelo}: {e}"
+            data = None
 
     if data is None:
-        raise RuntimeError(f"Todos os modelos Gemini falharam. Último erro: {ultimo_erro}")
+        raise RuntimeError(ultimo_erro or "Falha ao chamar a API do Gemini.")
 
-    raw = data["candidates"][0]["content"]["parts"][0]["text"]
+    # Extrai o texto da resposta
+    try:
+        raw = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Resposta inesperada do Gemini: {str(data)[:300]}")
 
-    # Limpa e faz parse do JSON
+    # Limpa possíveis blocos de código markdown
     raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    raw = raw.strip().rstrip("```").strip()
+    for prefix in ["```json", "```"]:
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):]
+            break
+    raw = raw.rstrip("`").strip()
 
-    eventos = _json.loads(raw)
-    # Normaliza data_fim vazio
+    # Parse JSON com mensagem clara em caso de falha
+    try:
+        eventos = _json.loads(raw)
+    except _json.JSONDecodeError as e:
+        raise RuntimeError(f"Gemini retornou resposta não-JSON: {raw[:200]}")
+
+    if not isinstance(eventos, list):
+        raise RuntimeError(f"Gemini retornou formato inesperado (esperava lista): {str(eventos)[:200]}")
+
+    # Normaliza campos
+    tipos_validos = {"feriado","recesso","reuniao","prova","evento","aula","comemorativo","outro"}
+    resultado = []
     for ev in eventos:
-        if not ev.get("data_fim"):
-            ev["data_fim"] = ev.get("data_inicio", "")
-    return eventos
+        if not isinstance(ev, dict):
+            continue
+        di = ev.get("data_inicio", "")
+        df = ev.get("data_fim", "") or di
+        tipo = ev.get("tipo", "outro")
+        if tipo not in tipos_validos:
+            tipo = "outro"
+        resultado.append({
+            "titulo":      str(ev.get("titulo", "Evento")).strip(),
+            "data_inicio": di,
+            "data_fim":    df,
+            "tipo":        tipo,
+            "descricao":   str(ev.get("descricao", "") or "").strip(),
+        })
+    return resultado
