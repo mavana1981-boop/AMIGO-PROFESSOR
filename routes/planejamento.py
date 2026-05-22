@@ -79,9 +79,14 @@ def index():
 def novo():
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
     if request.method == "POST":
+        try:
+            data_aula = datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date()
+        except (ValueError, KeyError):
+            flash("Data da aula inválida.", "danger")
+            return render_template("planejamento/form.html", turmas=turmas, plano=None)
         plano = PlanoAula(
-            titulo=request.form["titulo"],
-            data_aula=datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date(),
+            titulo=request.form.get("titulo", "").strip() or "Sem título",
+            data_aula=data_aula,
             bimestre=request.form.get("bimestre", type=int),
             semestre=request.form.get("semestre", type=int),
             conteudo=request.form.get("conteudo"),
@@ -90,7 +95,7 @@ def novo():
             recursos=request.form.get("recursos"),
             avaliacao_descricao=request.form.get("avaliacao_descricao"),
             professor_id=current_user.id,
-            turma_id=request.form.get("turma_id", type=int),
+            turma_id=request.form.get("turma_id", type=int) or None,
         )
         db.session.add(plano)
         db.session.commit()
@@ -105,8 +110,12 @@ def editar(id):
     plano  = PlanoAula.query.filter_by(id=id, professor_id=current_user.id).first_or_404()
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
     if request.method == "POST":
-        plano.titulo    = request.form["titulo"]
-        plano.data_aula = datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date()
+        plano.titulo    = request.form.get("titulo", "").strip() or "Sem título"
+        try:
+            plano.data_aula = datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date()
+        except (ValueError, KeyError):
+            flash("Data da aula inválida.", "danger")
+            return render_template("planejamento/form.html", turmas=turmas, plano=plano)
         plano.bimestre  = request.form.get("bimestre", type=int)
         plano.semestre  = request.form.get("semestre", type=int)
         plano.conteudo  = request.form.get("conteudo")
@@ -114,7 +123,7 @@ def editar(id):
         plano.metodologia       = request.form.get("metodologia")
         plano.recursos          = request.form.get("recursos")
         plano.avaliacao_descricao = request.form.get("avaliacao_descricao")
-        plano.turma_id  = request.form.get("turma_id", type=int)
+        plano.turma_id  = request.form.get("turma_id", type=int) or None
         db.session.commit()
         flash("Plano atualizado!", "success")
         return redirect(url_for("planejamento.index"))
