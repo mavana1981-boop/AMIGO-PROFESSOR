@@ -128,7 +128,11 @@ def importar():
         try:
             eventos_extraidos = _extrair_eventos_com_claude(pdf_b64, ano_letivo)
         except Exception as e:
-            flash(f"Erro ao processar PDF: {e}", "danger")
+            erro = str(e)
+            if "403" in erro or "API_KEY" in erro or "GEMINI_API_KEY" in erro:
+                flash("Erro de autenticação com o Gemini. Verifique se a variável GEMINI_API_KEY está correta no Railway.", "danger")
+            else:
+                flash(f"Erro ao processar PDF: {erro}", "danger")
             return redirect(url_for("calendario.importar"))
 
         # Guarda na sessão para confirmação
@@ -195,10 +199,11 @@ def confirmar_importacao():
 
 def _extrair_eventos_com_claude(pdf_b64: str, ano_letivo: str) -> list[dict]:
     """Envia o PDF para a API do Gemini e retorna lista de eventos JSON."""
-    import urllib.request, json as _json, os
+    import urllib.request, urllib.error, json as _json, os, base64
 
     api_key = os.environ.get("GEMINI_API_KEY", "")
-    url     = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY não configurada nas variáveis de ambiente do Railway.")
 
     prompt = f"""Você está analisando o calendário escolar letivo de {ano_letivo} da SEEDF (Secretaria de Estado de Educação do Distrito Federal) ou de outra escola brasileira.
 
@@ -224,33 +229,42 @@ Regras:
 - Inclua TODOS os eventos visíveis no PDF, não pule nenhum
 - Priorize: feriados nacionais, recessos, semanas pedagógicas, Conselhos de Classe, dia do professor, comemorações cívicas"""
 
-    payload = _json.dumps({
-        "contents": [{
-            "parts": [
-                {
-                    "inline_data": {
-                        "mime_type": "application/pdf",
-                        "data":      pdf_b64,
-                    }
-                },
-                {"text": prompt},
-            ]
-        }],
-        "generationConfig": {
-            "temperature":     0,
-            "maxOutputTokens": 8192,
-        }
-    }).encode()
+    def _chamar_gemini(model, partes):
+        url     = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = _json.dumps({
+            "contents": [{"parts": partes}],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 8192},
+        }).encode()
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return _json.loads(resp.read())
 
-    req = urllib.request.Request(
-        url,
-        data    = payload,
-        headers = {"Content-Type": "application/json"},
-        method  = "POST",
-    )
+    # Tenta modelos em ordem de preferência
+    modelos = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
+    partes_pdf = [
+        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}},
+        {"text": prompt},
+    ]
 
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        data = _json.loads(resp.read())
+    data = None
+    ultimo_erro = None
+    for modelo in modelos:
+        try:
+            data = _chamar_gemini(modelo, partes_pdf)
+            break
+        except urllib.error.HTTPError as e:
+            ultimo_erro = f"HTTP {e.code} no modelo {modelo}: {e.read().decode()[:200]}"
+            continue
+        except Exception as e:
+            ultimo_erro = str(e)
+            continue
+
+    if data is None:
+        raise RuntimeError(f"Todos os modelos Gemini falharam. Último erro: {ultimo_erro}")
 
     raw = data["candidates"][0]["content"]["parts"][0]["text"]
 
