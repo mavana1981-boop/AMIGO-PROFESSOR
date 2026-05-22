@@ -138,7 +138,7 @@ class Avaliacao(db.Model):
     gabarito       = db.Column(db.Text)
     bimestre       = db.Column(db.Integer)
     professor_id   = db.Column(db.Integer, db.ForeignKey("professores.id"), nullable=False)
-    turma_id       = db.Column(db.Integer, db.ForeignKey("turmas.id"), nullable=False)
+    turma_id       = db.Column(db.Integer, db.ForeignKey("turmas.id"), nullable=True)
     criado_em      = db.Column(db.DateTime, default=datetime.utcnow)
     notas          = db.relationship("Nota", backref="avaliacao", lazy=True, cascade="all, delete-orphan")
 
