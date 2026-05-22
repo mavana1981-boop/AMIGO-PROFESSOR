@@ -1,14 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Relatório de Planejamento — {{ label }}{% endblock %}
-{% block page_title %}Relatório de Planejamento{% endblock %}
+{% block title %}Relatório de Planejamento — {{ label }}
+<script>
+function imprimirLista() {
+  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
+}
+function imprimirCalendario() {
+  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
+}
+// Auto-print se vier com ?print=1
+if (new URLSearchParams(window.location.search).get('print') === '1') {
+  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+}
+</script>
+{% endblock %}
+{% block page_title %}Relatório de Planejamento
+<script>
+function imprimirLista() {
+  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
+}
+function imprimirCalendario() {
+  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
+}
+// Auto-print se vier com ?print=1
+if (new URLSearchParams(window.location.search).get('print') === '1') {
+  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+}
+</script>
+{% endblock %}
 {% block topbar_actions %}
-  {% if formato == 'calendario' %}
-  <a href="?{{ request_qs }}&formato=lista" class="btn btn-outline btn-sm">📋 Ver como Lista</a>
-  {% else %}
-  <a href="?{{ request_qs }}&formato=calendario" class="btn btn-outline btn-sm">📅 Ver como Calendário</a>
-  {% endif %}
-  <button onclick="window.print()" class="btn btn-primary btn-sm">🖨️ Imprimir</button>
+  <a href="?{{ request_qs }}&formato=lista" class="btn btn-outline btn-sm {% if formato=='lista' %}active{% endif %}">📋 Lista</a>
+  <a href="?{{ request_qs }}&formato=calendario" class="btn btn-outline btn-sm {% if formato=='calendario' %}active{% endif %}">📅 Calendário</a>
+  <button onclick="imprimirLista()" class="btn btn-outline btn-sm" title="Imprimir versão lista">🖨️ Lista</button>
+  <button onclick="imprimirCalendario()" class="btn btn-primary btn-sm" title="Imprimir versão calendário">🖨️ Calendário</button>
   <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
+
+<script>
+function imprimirLista() {
+  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
+}
+function imprimirCalendario() {
+  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
+}
+// Auto-print se vier com ?print=1
+if (new URLSearchParams(window.location.search).get('print') === '1') {
+  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+}
+</script>
 {% endblock %}
 {% block extra_css %}
 <style>
@@ -43,7 +80,21 @@
   .cal-print-grid{margin-bottom:20px;}
   body{font-size:10px;}
 }
+.btn.active{background:var(--navy-700)!important;color:white!important;border-color:var(--navy-700)!important;}
 </style>
+
+<script>
+function imprimirLista() {
+  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
+}
+function imprimirCalendario() {
+  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
+}
+// Auto-print se vier com ?print=1
+if (new URLSearchParams(window.location.search).get('print') === '1') {
+  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -130,4 +181,17 @@
 </div>
 {% endfor %}
 {% endif %}
+
+<script>
+function imprimirLista() {
+  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
+}
+function imprimirCalendario() {
+  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
+}
+// Auto-print se vier com ?print=1
+if (new URLSearchParams(window.location.search).get('print') === '1') {
+  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+}
+</script>
 {% endblock %}
