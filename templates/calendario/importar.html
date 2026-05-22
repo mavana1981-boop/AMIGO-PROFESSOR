@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Importar Calendário Oficial{% endblock %}
+{% block page_title %}Importar Calendário Oficial{% endblock %}
+{% block extra_css %}
+<style>
+.upload-zone {
+  border: 2.5px dashed var(--navy-300);
+  border-radius: 16px;
+  padding: 48px 32px;
+  text-align: center;
+  background: var(--navy-50);
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--navy-600);
+  background: var(--navy-100);
+}
+.upload-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-icon { font-size: 3rem; margin-bottom: 12px; }
+.upload-title { font-size: 1.125rem; font-weight: 700; color: var(--navy-900); margin-bottom: 6px; }
+.upload-sub { font-size: .875rem; color: var(--neutral-500); }
+.file-selected { display: none; margin-top: 16px; padding: 12px 16px; background: white; border-radius: 10px; border: 1px solid var(--sage-300); align-items: center; gap: 10px; }
+.file-selected.show { display: flex; }
+.steps { display: flex; gap: 0; margin-bottom: 32px; }
+.step { flex: 1; padding: 16px; text-align: center; border-bottom: 3px solid var(--neutral-200); }
+.step.active { border-color: var(--navy-600); }
+.step.done { border-color: var(--sage-500); }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--neutral-200); color: var(--neutral-600); font-weight: 700; font-size: .8rem; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+.step.active .step-num { background: var(--navy-600); color: white; }
+.step.done .step-num { background: var(--sage-500); color: white; }
+.step-label { font-size: .8125rem; color: var(--neutral-600); font-weight: 600; }
+.info-card { background: var(--amber-50); border: 1px solid var(--amber-200); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; gap: 12px; align-items: flex-start; font-size: .875rem; color: #78350f; }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Steps -->
+<div class="steps" style="max-width:600px;margin:0 auto 32px;">
+  <div class="step active">
+    <div class="step-num">1</div>
+    <div class="step-label">Upload do PDF</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-label">Revisão dos Eventos</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-label">Importar</div>
+  </div>
+</div>
+
+<div style="max-width:600px;margin:0 auto;">
+
+  <div class="info-card">
+    <span style="font-size:1.3rem;">ℹ️</span>
+    <div>
+      <strong>Como funciona:</strong> Faça o upload do PDF do calendário escolar oficial da SEEDF (ou da sua escola). A inteligência artificial extrai automaticamente todos os feriados, recessos, eventos pedagógicos e comemorações — você revisa e confirma antes de salvar.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📥 Upload do Calendário</span>
+    </div>
+    <div class="card-body" style="padding:24px;">
+      <form method="POST" enctype="multipart/form-data" id="uploadForm">
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" name="pdf_calendario" accept=".pdf" required id="pdfInput" />
+          <div class="upload-icon">📄</div>
+          <div class="upload-title">Clique ou arraste o PDF aqui</div>
+          <div class="upload-sub">Calendário escolar oficial · somente .pdf</div>
+        </div>
+
+        <div class="file-selected" id="fileSelected">
+          <span style="font-size:1.4rem;">📋</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;color:var(--navy-900);font-size:.9rem;" id="fileName">—</div>
+            <div style="font-size:.8rem;color:var(--neutral-500);" id="fileSize">—</div>
+          </div>
+          <span style="color:var(--sage-600);font-size:1.2rem;">✅</span>
+        </div>
+
+        <div class="form-group" style="margin-top:20px;">
+          <label class="form-label">Ano Letivo *</label>
+          <select class="form-control" name="ano_letivo" style="width:160px;">
+            {% for y in range(2024, 2028) %}
+            <option value="{{ y }}" {% if y == ano_atual %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          <p class="form-hint">Usado quando o ano não estiver explícito no PDF.</p>
+        </div>
+
+        <div class="d-flex gap-3" style="margin-top:24px;">
+          <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+            <span id="btnText">Analisar PDF com IA</span>
+            <span id="btnLoading" style="display:none;">⏳ Analisando... aguarde</span>
+          </button>
+          <a href="{{ url_for('calendario.index') }}" class="btn btn-outline">Cancelar</a>
+        </div>
+
+      </form>
+
+      <!-- Loader overlay -->
+      <div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+        <div style="background:white;border-radius:20px;padding:40px 48px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+          <div style="font-size:2.5rem;margin-bottom:12px;">🤖</div>
+          <div style="font-size:1.1rem;font-weight:700;color:var(--navy-900);margin-bottom:8px;">Analisando o calendário...</div>
+          <div style="font-size:.875rem;color:var(--neutral-500);">A IA está lendo o PDF e extraindo os eventos.<br>Isso pode levar até 30 segundos.</div>
+          <div style="margin-top:20px;height:4px;background:var(--neutral-100);border-radius:999px;overflow:hidden;">
+            <div style="height:100%;background:var(--navy-600);border-radius:999px;animation:progress-anim 2.5s ease-in-out infinite;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Dicas -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><span class="card-title">💡 Dicas para melhor resultado</span></div>
+    <div class="card-body" style="padding:16px 20px;">
+      <ul style="font-size:.875rem;color:var(--neutral-700);margin:0;padding-left:20px;line-height:2;">
+        <li>Use o PDF original da SEEDF (não uma foto ou scan)</li>
+        <li>PDFs com texto selecionável funcionam melhor que imagens</li>
+        <li>O calendário pode ser de qualquer ano letivo</li>
+        <li>Você poderá revisar e desmarcar eventos antes de confirmar</li>
+        <li>Eventos duplicados são responsabilidade do professor verificar</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<style>
+@keyframes progress-anim {
+  0%   { width: 0%; margin-left: 0; }
+  50%  { width: 70%; margin-left: 0; }
+  100% { width: 0%;  margin-left: 100%; }
+}
+</style>
+
+<script>
+const input   = document.getElementById('pdfInput');
+const zone    = document.getElementById('uploadZone');
+const selDiv  = document.getElementById('fileSelected');
+const fname   = document.getElementById('fileName');
+const fsize   = document.getElementById('fileSize');
+const btn     = document.getElementById('submitBtn');
+const btnTxt  = document.getElementById('btnText');
+const btnLoad = document.getElementById('btnLoading');
+const overlay = document.getElementById('loadingOverlay');
+
+function showFile(file) {
+  if (!file) return;
+  fname.textContent = file.name;
+  fsize.textContent = (file.size / 1024).toFixed(0) + ' KB';
+  selDiv.classList.add('show');
+  btn.disabled = false;
+}
+
+input.addEventListener('change', () => showFile(input.files[0]));
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', ()  => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) {
+    input.files = e.dataTransfer.files;
+    showFile(input.files[0]);
+  }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', () => {
+  btnTxt.style.display  = 'none';
+  btnLoad.style.display = 'inline';
+  btn.disabled = true;
+  overlay.style.display = 'flex';
+});
+</script>
+{% endblock %}
