@@ -66,6 +66,7 @@
     <div class="mbody" id="avBody"></div>
     <div class="mfoot">
       <button onclick="fecharModal('modalAv')" class="btn btn-outline btn-sm">Fechar</button>
+      <button onclick="excluirAv()" class="btn btn-danger btn-sm">🗑 Excluir</button>
       <a id="avNotas" href="#" class="btn btn-outline btn-sm">📝 Notas</a>
       <a id="avEditar" href="#" class="btn btn-primary btn-sm">✏ Editar</a>
     </div>
@@ -158,8 +159,10 @@ function renderizar(ano,mes){
 function mudarMes(d){mesAtual+=d;if(mesAtual>12){mesAtual=1;anoAtual++;}if(mesAtual<1){mesAtual=12;anoAtual--;}carregar(anoAtual,mesAtual);}
 function irHoje(){anoAtual=HOJE.ano;mesAtual=HOJE.mes;carregar(anoAtual,mesAtual);}
 function trocarTurma(){carregar(anoAtual,mesAtual);}
+let avAtualId=null;
 function abrirAv(id){
   const a=avs.find(x=>x.id===id); if(!a) return;
+  avAtualId=id;
   document.getElementById('avTitulo').textContent=a.titulo;
   document.getElementById('avEditar').href=`/avaliacoes/editar/${id}`;
   document.getElementById('avNotas').href=`/avaliacoes/notas/${id}`;
@@ -201,6 +204,11 @@ function gerarRel(){
   if(tid) params+=`&turma_id=${tid}`;
   fecharModal('modalRel');
   window.location.href=`/avaliacoes/relatorio-preview?${params}`;
+}
+function excluirAv() {
+  if (!avAtualId || !confirm('Excluir esta avaliação permanentemente?')) return;
+  fetch(`/avaliacoes/excluir/${avAtualId}`, {method:'POST'})
+    .then(r=>r.json()).then(()=>{ fecharModal('modalAv'); carregar(anoAtual,mesAtual); });
 }
 function fecharModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
