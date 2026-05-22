@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Frequência — {{ label }}{% endblock %}
+{% block page_title %}Relatório de Frequência{% endblock %}
+{% block topbar_actions %}
+  <button onclick="window.print()" class="btn btn-primary btn-sm">🖨️ Imprimir</button>
+  <a href="{{ url_for('frequencia.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
+{% endblock %}
+{% block extra_css %}
+<style>
+.freq-bar-wrap{width:100px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
+.freq-bar-fill{height:100%;border-radius:999px;}
+.freq-pct{font-size:.85rem;font-weight:700;margin-left:6px;vertical-align:middle;}
+.aluno-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:16px;overflow:hidden;}
+.aluno-head{padding:12px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.stat-pill{background:white;border:1px solid var(--neutral-200);border-radius:8px;padding:3px 10px;font-size:.8rem;font-weight:600;}
+@media print {
+  .sidebar,.top-bar,.topbar-actions{display:none!important;}
+  .main-wrapper{margin-left:0!important;}
+  .content{padding:16px!important;}
+  .aluno-card{break-inside:avoid;page-break-inside:avoid;}
+  body{font-size:11px;}
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Cabeçalho do relatório -->
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px 20px;background:white;border-radius:12px;border:1px solid var(--neutral-200);">
+  <img src="{{ url_for('static', filename='logo_df.png') }}" style="height:52px;width:auto;flex-shrink:0;" alt="DF"/>
+  <div style="flex:1;">
+    <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">{{ escola }}</div>
+    <div style="font-size:.8rem;color:var(--neutral-500);">Prof(a): {{ prof_nome }}</div>
+  </div>
+  <div style="text-align:right;">
+    <div style="font-size:.75rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Relatório de Frequência</div>
+    <div style="font-size:.9rem;font-weight:700;color:var(--navy-900);">{{ label }}</div>
+    <div style="font-size:.8rem;color:var(--neutral-500);">{{ turma_nome }}</div>
+  </div>
+</div>
+
+<!-- Resumo consolidado -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><span class="card-title">Resumo Geral</span></div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr><th>#</th><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:180px;">% Frequência</th></tr></thead>
+      <tbody>
+        {% for aluno in alunos %}
+        {% set st = stats[aluno.id] %}
+        {% set total=st[0] %}
+{% set presentes=st[1] %}
+{% set faltas=st[2] %}
+{% set pct=st[3] %}
+        <tr>
+          <td class="text-muted text-sm">{{ loop.index }}</td>
+          <td class="fw-700">{{ aluno.nome }}</td>
+          <td>{{ total or '—' }}</td>
+          <td>{{ presentes if total else '—' }}</td>
+          <td>{% if total %}{% if faltas>0 %}<span class="badge badge-red">{{ faltas }}</span>{% else %}<span class="badge badge-green">0</span>{% endif %}{% else %}—{% endif %}</td>
+          <td>
+            {% if pct is not none %}
+              {% if pct>=75 %}{% set bc='var(--sage-500)' %}{% set pc='var(--sage-600)' %}
+              {% elif pct>=50 %}{% set bc='var(--amber-500)' %}{% set pc='#92400e' %}
+              {% else %}{% set bc='var(--rose-500)' %}{% set pc='var(--rose-500)' %}{% endif %}
+              <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:{{ bc }};"></div></div>
+              <span class="freq-pct" style="color:{{ pc }};">{{ pct }}%</span>
+              {% if pct<75 %}<span class="badge badge-{% if pct<50 %}red{% else %}amber{% endif %}" style="margin-left:4px;font-size:.6rem;">{% if pct<50 %}⚠ Crítico{% else %}Atenção{% endif %}</span>{% endif %}
+            {% else %}<span class="text-muted text-sm">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Detalhe por aluno -->
+<h3 style="font-size:1rem;font-weight:700;color:var(--navy-900);margin-bottom:12px;">Detalhamento por Aluno</h3>
+{% for aluno in alunos %}
+{% set st=stats[aluno.id] %}
+{% set total=st[0] %}
+{% set presentes=st[1] %}
+{% set faltas=st[2] %}
+{% set pct=st[3] %}
+{% set regs=detalhes[aluno.id] %}
+<div class="aluno-card">
+  <div class="aluno-head">
+    <div style="font-weight:700;font-size:.9375rem;color:var(--navy-900);">{{ aluno.nome }}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }}</span>
+      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }}</span>
+      {% if pct is not none %}
+        {% if pct>=75 %}{% set pc='var(--sage-600)' %}{% elif pct>=50 %}{% set pc='#92400e' %}{% else %}{% set pc='var(--rose-500)' %}{% endif %}
+        <span class="stat-pill" style="color:{{ pc }};">{{ pct }}%</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if regs %}
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr><th>Data</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        {% for f in regs %}
+        <tr>
+          <td>{{ f.data.strftime('%d/%m/%Y') }}</td>
+          <td>{% if f.status=='presente' %}<span class="badge badge-green">Presente</span>
+              {% elif f.status=='ausente' %}<span class="badge badge-red">Ausente</span>
+              {% elif f.status=='atestado' %}<span class="badge badge-amber">Atestado</span>
+              {% else %}<span class="badge badge-blue">Afastamento</span>{% endif %}</td>
+          <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding:16px;">Nenhum registro no período.</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
