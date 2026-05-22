@@ -78,7 +78,10 @@ def salvar_aluno_form(aluno, form):
 @turmas_bp.route("/<int:turma_id>/alunos/novo", methods=["GET", "POST"])
 @login_required
 def novo_aluno(turma_id):
-    turma = Turma.query.filter_by(id=turma_id, professor_id=current_user.id).first_or_404()
+    turma = Turma.query.filter_by(id=turma_id, professor_id=current_user.id).first()
+    if not turma:
+        flash("Turma não encontrada. Crie uma turma antes de adicionar alunos.", "warning")
+        return redirect(url_for("turmas.nova"))
     if request.method == "POST":
         aluno = Aluno(turma_id=turma_id)
         salvar_aluno_form(aluno, request.form)
