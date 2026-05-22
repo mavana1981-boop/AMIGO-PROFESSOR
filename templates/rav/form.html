@@ -248,15 +248,14 @@
         <label style="font-size:.75rem;font-weight:700;color:var(--neutral-500);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px;">Texto final</label>
         <textarea class="area-textarea" name="{{ campo }}" id="{{ campo }}" rows="3">{{ rav[campo] if rav and rav[campo] else '' }}</textarea>
 
-        <!-- Adicionar frase personalizada -->
+        <!-- Adicionar frase personalizada (AJAX - fora do form principal) -->
         <div style="margin-top:10px;padding:10px 12px;background:var(--amber-50);border:1.5px dashed var(--amber-300);border-radius:8px;">
           <div style="font-size:.75rem;font-weight:700;color:#92400e;margin-bottom:6px;">⭐ Salvar frase personalizada para uso futuro</div>
-          <form method="POST" action="{{ url_for('rav.adicionar_frase') }}" style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input type="hidden" name="area" value="{{ campo }}" />
-            <input type="text" name="texto" placeholder="Digite a frase e clique em Salvar..." required
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="text" id="novaFrase_{{ campo }}" placeholder="Digite a frase e clique em Salvar..."
                    style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid var(--amber-300);border-radius:8px;font-size:.8125rem;background:white;"/>
-            <button type="submit" class="btn btn-sm" style="background:var(--amber-500);color:white;font-weight:700;">Salvar Frase</button>
-          </form>
+            <button type="button" onclick="salvarFrase('{{ campo }}')" class="btn btn-sm" style="background:var(--amber-500);color:white;font-weight:700;">Salvar Frase</button>
+          </div>
         </div>
       </div>
       {% endfor %}
@@ -274,6 +273,26 @@
 </form>
 
 <script>
+// Salvar frase personalizada via AJAX
+function salvarFrase(area) {
+  const input = document.getElementById('novaFrase_' + area);
+  const texto = input.value.trim();
+  if (!texto) { alert('Digite uma frase antes de salvar.'); return; }
+
+  const formData = new FormData();
+  formData.append('area', area);
+  formData.append('texto', texto);
+
+  fetch('/rav/frases/adicionar', { method: 'POST', body: formData })
+    .then(r => {
+      if (r.redirected || r.ok) {
+        input.value = '';
+        alert('Frase salva! Ela aparecerá na lista ao recarregar a página.');
+      }
+    })
+    .catch(() => alert('Erro ao salvar frase.'));
+}
+
 // Clique em frase → adiciona ao textarea
 function toggleFrase(label, campo) {
   // Delay para checkbox atualizar
