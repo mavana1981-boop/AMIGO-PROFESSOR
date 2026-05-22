@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Confirmar Importação{% endblock %}
+{% block page_title %}Confirmar Eventos Importados{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('calendario.importar') }}" class="btn btn-outline btn-sm">↩ Novo Upload</a>
+{% endblock %}
+{% block extra_css %}
+<style>
+.ev-card{border:1.5px solid var(--neutral-200);border-radius:12px;margin-bottom:10px;overflow:hidden;transition:all .15s;}
+.ev-card.marcado{border-color:var(--sage-400);background:var(--sage-50);}
+.ev-card.desmarcado{opacity:.45;background:var(--neutral-50);}
+.ev-card-header{padding:10px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;}
+.ev-card-body{padding:0 16px 14px 44px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.tipo-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.tipo-badge{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--neutral-200);color:var(--neutral-700);}
+.summary-bar{background:var(--navy-900);color:white;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="summary-bar">
+  <div>
+    <div style="font-size:1.1rem;font-weight:800;">{{ eventos|length }} evento(s) encontrado(s)</div>
+    <div style="font-size:.8rem;opacity:.7;margin-top:2px;">Ano letivo {{ ano }} — revise, edite e confirme quais deseja importar</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button type="button" onclick="marcarTodos(true)" class="btn btn-outline btn-sm" style="color:white;border-color:rgba(255,255,255,.3);">✅ Marcar todos</button>
+    <button type="button" onclick="marcarTodos(false)" class="btn btn-outline btn-sm" style="color:white;border-color:rgba(255,255,255,.3);">☐ Desmarcar todos</button>
+  </div>
+</div>
+
+<form method="POST" id="formConfirmar">
+
+  <!-- Contagem dinâmica -->
+  <div style="font-size:.875rem;color:var(--neutral-500);margin-bottom:14px;">
+    <span id="contagem">0</span> de {{ eventos|length }} selecionado(s)
+  </div>
+
+  {% for ev in eventos %}
+  {% set tipo = ev.tipo | default('outro') %}
+  {% set cor = cores.get(tipo, '#6b7280') %}
+  <div class="ev-card marcado" id="card_{{ loop.index0 }}">
+    <!-- Cabeçalho clicável -->
+    <div class="ev-card-header" onclick="toggleCard({{ loop.index0 }})">
+      <input type="checkbox" name="incluir_{{ loop.index0 }}" id="cb_{{ loop.index0 }}"
+             checked style="width:18px;height:18px;accent-color:var(--sage-500);flex-shrink:0;"
+             onchange="atualizarCard({{ loop.index0 }})">
+      <div class="tipo-dot" style="background:{{ cor }};"></div>
+      <div style="flex:1;font-weight:700;font-size:.9rem;color:var(--navy-900);">
+        {{ ev.titulo }}
+      </div>
+      <span class="tipo-badge">{{ tipo }}</span>
+      <span style="font-size:.8rem;color:var(--neutral-500);white-space:nowrap;">
+        {{ ev.data_inicio }}{% if ev.data_fim and ev.data_fim != ev.data_inicio %} → {{ ev.data_fim }}{% endif %}
+      </span>
+    </div>
+
+    <!-- Campos editáveis -->
+    <div class="ev-card-body">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" style="font-size:.7rem;">Título</label>
+        <input type="text" name="titulo_{{ loop.index0 }}" class="form-control"
+               value="{{ ev.titulo }}" style="font-size:.8125rem;padding:5px 10px;">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" style="font-size:.7rem;">Tipo</label>
+        <select name="tipo_{{ loop.index0 }}" class="form-control" style="font-size:.8125rem;padding:5px 10px;"
+                onchange="atualizarDot({{ loop.index0 }}, this.value)">
+          {% for t,c in cores.items() %}
+          <option value="{{ t }}" {% if t==tipo %}selected{% endif %}>{{ t.capitalize() }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" style="font-size:.7rem;">Data Início</label>
+        <input type="date" name="data_inicio_{{ loop.index0 }}" class="form-control"
+               value="{{ ev.data_inicio }}" style="font-size:.8125rem;padding:5px 10px;">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" style="font-size:.7rem;">Data Fim (opcional)</label>
+        <input type="date" name="data_fim_{{ loop.index0 }}" class="form-control"
+               value="{{ ev.data_fim if ev.data_fim != ev.data_inicio else '' }}"
+               style="font-size:.8125rem;padding:5px 10px;">
+      </div>
+      <div class="form-group" style="margin:0;grid-column:1/-1;">
+        <label class="form-label" style="font-size:.7rem;">Descrição</label>
+        <input type="text" name="descricao_{{ loop.index0 }}" class="form-control"
+               value="{{ ev.descricao or '' }}" style="font-size:.8125rem;padding:5px 10px;">
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div style="margin-top:20px;display:flex;gap:12px;position:sticky;bottom:16px;background:var(--neutral-50);padding:16px;border-radius:12px;border:1px solid var(--neutral-200);box-shadow:0 -2px 12px rgba(0,0,0,.06);">
+    <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;padding:13px;">
+      ✅ Importar Eventos Selecionados
+    </button>
+    <a href="{{ url_for('calendario.importar') }}" class="btn btn-outline" style="padding:13px 20px;">
+      Cancelar
+    </a>
+  </div>
+</form>
+
+<script>
+const CORES = {{ cores | tojson }};
+
+function atualizarCard(i) {
+  const cb   = document.getElementById('cb_' + i);
+  const card = document.getElementById('card_' + i);
+  card.classList.toggle('marcado',   cb.checked);
+  card.classList.toggle('desmarcado', !cb.checked);
+  atualizarContagem();
+}
+
+function toggleCard(i) {
+  // só toggle se clicou fora do checkbox/inputs
+  // já está sendo tratado pelo onchange do checkbox
+}
+
+function atualizarDot(i, tipo) {
+  const dot = document.querySelector('#card_' + i + ' .tipo-dot');
+  if (dot) dot.style.background = CORES[tipo] || '#6b7280';
+}
+
+function marcarTodos(marcado) {
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = marcado;
+    const i = cb.id.replace('cb_','');
+    const card = document.getElementById('card_' + i);
+    card.classList.toggle('marcado',   marcado);
+    card.classList.toggle('desmarcado', !marcado);
+  });
+  atualizarContagem();
+}
+
+function atualizarContagem() {
+  const n = document.querySelectorAll('input[type=checkbox]:checked').length;
+  document.getElementById('contagem').textContent = n;
+}
+
+// Init
+atualizarContagem();
+</script>
+{% endblock %}
