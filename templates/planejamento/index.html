@@ -95,7 +95,7 @@
     <div class="mfoot">
       <button onclick="fecharModal('modalPlano')" class="btn btn-outline btn-sm">Fechar</button>
       <a id="mpEditar" href="#" class="btn btn-primary btn-sm">✏ Editar</a>
-      <a id="mpExcluir" href="#" class="btn btn-danger btn-sm" onclick="return confirm('Excluir este plano?')">🗑 Excluir</a>
+      <button id="mpExcluirBtn" class="btn btn-danger btn-sm" onclick="excluirPlano()">🗑 Excluir</button>
     </div>
   </div>
 </div>
@@ -254,18 +254,13 @@ function trocarTurma(v) {
 }
 
 // ── Modal plano ───────────────────────────────────────────────────────────────
+let planoAtualId = null;
 function abrirPlano(id) {
   const p = todosPlanos.find(x => x.id === id);
   if (!p) return;
+  planoAtualId = id;
   document.getElementById('mpTitulo').textContent = p.titulo;
-  document.getElementById('mpEditar').href  = `/planejamento/editar/${id}`;
-  document.getElementById('mpExcluir').href = `/planejamento/excluir/${id}`;
-  document.getElementById('mpExcluir').onclick = function() {
-    if (!confirm('Excluir este plano?')) return false;
-    fetch(`/planejamento/excluir/${id}`, {method:'POST'})
-      .then(() => { fecharModal('modalPlano'); carregarPlanos(anoAtual, mesAtual); });
-    return false;
-  };
+  document.getElementById('mpEditar').href = `/planejamento/editar/${id}`;
   const campos = [
     ['Data',        p.data_fmt],
     ['Turma',       p.turma],
@@ -313,6 +308,11 @@ function gerarRelatorio(formato) {
   window.location.href = `/planejamento/relatorio-preview?${params}`;
 }
 
+function excluirPlano() {
+  if (!planoAtualId || !confirm('Excluir este plano permanentemente?')) return;
+  fetch(`/planejamento/excluir/${planoAtualId}`, {method:'POST'})
+    .then(() => { fecharModal('modalPlano'); carregarPlanos(anoAtual, mesAtual); });
+}
 function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.mov').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
 
