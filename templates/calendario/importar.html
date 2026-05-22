@@ -103,7 +103,7 @@
 
         <div class="d-flex gap-3" style="margin-top:24px;">
           <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
-            <span id="btnText">Analisar PDF com IA</span>
+            <span id="btnText">Analisar PDF com Gemini</span>
             <span id="btnLoading" style="display:none;">⏳ Analisando... aguarde</span>
           </button>
           <a href="{{ url_for('calendario.index') }}" class="btn btn-outline">Cancelar</a>
@@ -116,7 +116,7 @@
         <div style="background:white;border-radius:20px;padding:40px 48px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
           <div style="font-size:2.5rem;margin-bottom:12px;">🤖</div>
           <div style="font-size:1.1rem;font-weight:700;color:var(--navy-900);margin-bottom:8px;">Analisando o calendário...</div>
-          <div style="font-size:.875rem;color:var(--neutral-500);">A IA está lendo o PDF e extraindo os eventos.<br>Isso pode levar até 30 segundos.</div>
+          <div style="font-size:.875rem;color:var(--neutral-500);">O Gemini está lendo o PDF e extraindo os eventos.<br>Isso pode levar até 30 segundos.</div>
           <div style="margin-top:20px;height:4px;background:var(--neutral-100);border-radius:999px;overflow:hidden;">
             <div style="height:100%;background:var(--navy-600);border-radius:999px;animation:progress-anim 2.5s ease-in-out infinite;"></div>
           </div>
