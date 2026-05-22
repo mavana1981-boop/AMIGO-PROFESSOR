@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, jsonify
 from flask_login import login_required, current_user
 from routes.pdf_header import cabecalho_pdf
 from app import db
@@ -97,13 +97,14 @@ def _meses_do_periodo(filtro, valor, ano, mes):
 @freq_bp.route("/")
 @login_required
 def index():
-    filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str = _get_filtros()
+    hoje   = date.today()
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
-    stats_por_turma = {t.id: calcular_stats_turma(t.id, filtro, valor, ano, data_ini, data_fim) for t in turmas}
+    turmas_json = [{
+        "id": t.id, "nome": t.nome,
+        "alunos": [{"id": a.id, "nome": a.nome} for a in sorted(t.alunos, key=lambda x: x.nome)]
+    } for t in turmas]
     return render_template("frequencia/index.html",
-        turmas=turmas, stats_por_turma=stats_por_turma,
-        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre,
-        data_ini=data_ini_str, data_fim=data_fim_str)
+        turmas=turmas, turmas_json=turmas_json, hoje=hoje)
 
 
 @freq_bp.route("/registrar/<int:turma_id>", methods=["GET", "POST"])
@@ -530,3 +531,135 @@ def _pdf_calendario(alunos, freq_por_aluno, stats, meses, periodo_label, turma, 
     doc.build(story)
     buf.seek(0)
     return buf
+
+
+# ── API: dados do mês para o calendário ───────────────────────────────────────
+
+@freq_bp.route("/api/mes")
+@login_required
+def api_mes():
+    """Retorna registros de frequência do mês como JSON {YYYY-MM-DD: [{aluno_id, aluno_nome, status}]}."""
+    hoje     = date.today()
+    ano      = request.args.get("ano",  hoje.year,  type=int)
+    mes      = request.args.get("mes",  hoje.month, type=int)
+    turma_id = request.args.get("turma_id", type=int)
+
+    q = Frequencia.query.join(Aluno).filter(
+        Frequencia.professor_id == current_user.id,
+        db.extract("year",  Frequencia.data) == ano,
+        db.extract("month", Frequencia.data) == mes,
+    )
+    if turma_id:
+        q = q.filter(Aluno.turma_id == turma_id)
+
+    resultado = {}
+    for f in q.all():
+        k = f.data.strftime("%Y-%m-%d")
+        if k not in resultado:
+            resultado[k] = []
+        resultado[k].append({
+            "aluno_id":   f.aluno_id,
+            "aluno_nome": f.aluno.nome,
+            "status":     f.status,
+        })
+    return jsonify(resultado)
+
+
+# ── API: registrar frequência do dia (JSON) ───────────────────────────────────
+
+@freq_bp.route("/api/registrar", methods=["POST"])
+@login_required
+def api_registrar():
+    """Salva ou atualiza frequência de um dia inteiro via JSON."""
+    dados    = request.get_json()
+    data_str = dados.get("data", "")
+    turma_id = dados.get("turma_id")
+    registros= dados.get("registros", {})  # {aluno_id: status}
+
+    try:
+        data_obj = datetime.strptime(data_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "erro": "Data inválida"}), 400
+
+    # Remover registros existentes do dia+turma+professor
+    alunos_ids = [int(k) for k in registros.keys()]
+    Frequencia.query.filter(
+        Frequencia.professor_id == current_user.id,
+        Frequencia.data         == data_obj,
+        Frequencia.aluno_id.in_(alunos_ids),
+    ).delete(synchronize_session=False)
+    db.session.flush()
+
+    # Inserir novos
+    for aluno_id_str, status in registros.items():
+        db.session.add(Frequencia(
+            aluno_id=int(aluno_id_str), turma_id=turma_id,
+            professor_id=current_user.id, data=data_obj, status=status,
+        ))
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ── Preview relatório de frequência (web, imprimível) ─────────────────────────
+
+@freq_bp.route("/relatorio-preview")
+@login_required
+def relatorio_preview():
+    from datetime import timedelta
+    hoje     = date.today()
+    tipo     = request.args.get("tipo", "mes")
+    turma_id = request.args.get("turma_id", type=int)
+    turmas   = Turma.query.filter_by(professor_id=current_user.id).all()
+    alunos   = []
+    for t in turmas:
+        if not turma_id or t.id == turma_id:
+            alunos.extend(sorted(t.alunos, key=lambda a: a.nome))
+
+    # Definir range de datas
+    if tipo == "mes":
+        ano   = request.args.get("ano", hoje.year, type=int)
+        meses = [int(m) for m in request.args.get("meses", str(hoje.month)).split(",") if m]
+        datas = []
+        for m in meses:
+            import calendar as cal_mod
+            last = cal_mod.monthrange(ano, m)[1]
+            datas.append((date(ano, m, 1), date(ano, m, last)))
+        label = f"{', '.join([['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m] for m in meses])}/{ano}"
+    elif tipo == "ano":
+        ano   = request.args.get("ano", hoje.year, type=int)
+        datas = [(date(ano, 1, 1), date(ano, 12, 31))]
+        label = f"Ano Letivo {ano}"
+    else:
+        data_ini = datetime.strptime(request.args.get("data_ini", hoje.replace(day=1).isoformat()), "%Y-%m-%d").date()
+        data_fim = datetime.strptime(request.args.get("data_fim", hoje.isoformat()), "%Y-%m-%d").date()
+        datas = [(data_ini, data_fim)]
+        label = f"{data_ini.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+
+    # Calcular stats por aluno no período combinado
+    stats   = {}
+    detalhes= {}
+    for aluno in alunos:
+        total = presentes = faltas = 0
+        regs  = []
+        for (di, df) in datas:
+            q = Frequencia.query.filter(
+                Frequencia.aluno_id == aluno.id,
+                Frequencia.data >= di, Frequencia.data <= df,
+            ).order_by(Frequencia.data).all()
+            regs.extend(q)
+            total    += len(q)
+            presentes+= sum(1 for r in q if r.status=="presente")
+            faltas   += sum(1 for r in q if r.status!="presente")
+        pct = round(presentes/total*100, 1) if total else None
+        stats[aluno.id]    = (total, presentes, faltas, pct)
+        detalhes[aluno.id] = regs
+
+    turma_nome = next((t.nome for t in turmas if t.id==turma_id), "Todas as turmas") if turma_id else "Todas as turmas"
+
+    return render_template("frequencia/relatorio_preview.html",
+        alunos=alunos, stats=stats, detalhes=detalhes,
+        label=label, turma_nome=turma_nome,
+        prof_nome=current_user.nome, escola=current_user.escola or "",
+        tipo=tipo, turma_id=turma_id,
+        request_args=request.args.to_dict(),
+    )
