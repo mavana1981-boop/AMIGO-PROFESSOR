@@ -191,17 +191,20 @@ def confirmar_importacao():
                            eventos=eventos_raw, ano=ano, cores=CORES_TIPO)
 
 
-# ── Claude extrai os eventos do PDF ──────────────────────────────────────────
+# ── Gemini extrai os eventos do PDF ──────────────────────────────────────────
 
 def _extrair_eventos_com_claude(pdf_b64: str, ano_letivo: str) -> list[dict]:
-    """Envia o PDF para a API do Claude e retorna lista de eventos JSON."""
-    import urllib.request, json as _json
+    """Envia o PDF para a API do Gemini e retorna lista de eventos JSON."""
+    import urllib.request, json as _json, os
+
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    url     = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
     prompt = f"""Você está analisando o calendário escolar letivo de {ano_letivo} da SEEDF (Secretaria de Estado de Educação do Distrito Federal) ou de outra escola brasileira.
 
 Extraia TODOS os eventos, feriados, recessos, reuniões, provas, comemorações e dias especiais que encontrar.
 
-Retorne SOMENTE um array JSON válido, sem texto extra, sem markdown, sem explicações.
+Retorne SOMENTE um array JSON válido, sem texto extra, sem markdown, sem explicações, sem blocos de código.
 
 Cada objeto deve ter exatamente estes campos:
 {{
@@ -222,44 +225,34 @@ Regras:
 - Priorize: feriados nacionais, recessos, semanas pedagógicas, Conselhos de Classe, dia do professor, comemorações cívicas"""
 
     payload = _json.dumps({
-        "model":      "claude-sonnet-4-20250514",
-        "max_tokens": 4000,
-        "messages": [{
-            "role": "user",
-            "content": [
+        "contents": [{
+            "parts": [
                 {
-                    "type":   "document",
-                    "source": {
-                        "type":       "base64",
-                        "media_type": "application/pdf",
-                        "data":       pdf_b64,
-                    },
+                    "inline_data": {
+                        "mime_type": "application/pdf",
+                        "data":      pdf_b64,
+                    }
                 },
-                {"type": "text", "text": prompt},
-            ],
+                {"text": prompt},
+            ]
         }],
+        "generationConfig": {
+            "temperature":     0,
+            "maxOutputTokens": 8192,
+        }
     }).encode()
 
-    import os
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
+        url,
         data    = payload,
-        headers = {
-            "Content-Type":      "application/json",
-            "x-api-key":         api_key,
-            "anthropic-version": "2023-06-01",
-        },
-        method = "POST",
+        headers = {"Content-Type": "application/json"},
+        method  = "POST",
     )
 
-    with urllib.request.urlopen(req, timeout=90) as resp:
+    with urllib.request.urlopen(req, timeout=120) as resp:
         data = _json.loads(resp.read())
 
-    raw = ""
-    for block in data.get("content", []):
-        if block.get("type") == "text":
-            raw += block["text"]
+    raw = data["candidates"][0]["content"]["parts"][0]["text"]
 
     # Limpa e faz parse do JSON
     raw = raw.strip()
