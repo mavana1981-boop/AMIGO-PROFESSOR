@@ -49,13 +49,17 @@
 .meses-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
 .mes-chip{padding:7px 4px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);text-align:center;transition:all .15s;}
 .mes-chip.sel{background:var(--amber-500);color:white;border-color:var(--amber-500);}
-.status-btn{padding:8px 16px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:700;cursor:pointer;transition:all .15s;background:white;}
+.status-btn{padding:6px 12px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:700;cursor:pointer;transition:all .15s;background:white;display:flex;align-items:center;gap:5px;white-space:nowrap;}
 .status-btn.presente{border-color:#86efac;color:#166534;}
 .status-btn.presente.sel{background:#dcfce7;border-color:#22c55e;}
 .status-btn.ausente{border-color:#fca5a5;color:#991b1b;}
 .status-btn.ausente.sel{background:#fee2e2;border-color:#ef4444;}
 .status-btn.atestado{border-color:#fcd34d;color:#92400e;}
 .status-btn.atestado.sel{background:#fef3c7;border-color:#f59e0b;}
+.status-btn.outros{border-color:#c4b5fd;color:#6d28d9;}
+.status-btn.outros.sel{background:#ede9fe;border-color:#7c3aed;}
+.obs-input{flex:1;padding:5px 10px;border:1.5px solid var(--neutral-200);border-radius:8px;font-size:.8rem;display:none;}
+.obs-input.show{display:block;}
 .aluno-reg-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--neutral-100);}
 .aluno-reg-row:last-child{border-bottom:none;}
 .aluno-reg-nome{flex:1;font-size:.875rem;font-weight:600;}
@@ -240,7 +244,7 @@ function irHoje(){anoAtual=HOJE.ano;mesAtual=HOJE.mes;carregarMes(anoAtual,mesAt
 function trocarTurma(){carregarMes(anoAtual,mesAtual);}
 
 // ── Registrar frequência ──────────────────────────────────────────────────────
-let statusMap = {};
+let statusMap = {}; let obsMap = {};
 function abrirRegistrar(data) {
   const tid = document.getElementById('selTurma').value;
   diaReg = data;
@@ -265,19 +269,23 @@ function abrirRegistrar(data) {
 
   // Pré-preencher com registros existentes
   const regs = dadosMes[data] || [];
-  statusMap  = {};
+  statusMap  = {}; obsMap = {};
   regs.forEach(r=>statusMap[r.aluno_id]=r.status);
 
   corpo.innerHTML = turma.alunos.map(a=>{
-    const st = statusMap[a.id]||'presente';
+    const st      = statusMap[a.id]||'presente';
+    const obs     = obsMap[a.id]||'';
+    const isOutros = !['presente','ausente','atestado'].includes(st);
     statusMap[a.id] = st;
-    return `<div class="aluno-reg-row">
+    return `<div class="aluno-reg-row" style="flex-wrap:wrap;gap:6px;">
       <div class="aluno-reg-nome">${a.nome}</div>
-      <div class="aluno-reg-btns">
-        <button class="status-btn presente ${st==='presente'?'sel':''}" onclick="setStatus(${a.id},'presente',this)">✅</button>
-        <button class="status-btn ausente ${st==='ausente'?'sel':''}"  onclick="setStatus(${a.id},'ausente',this)">❌</button>
-        <button class="status-btn atestado ${st==='atestado'?'sel':''}" onclick="setStatus(${a.id},'atestado',this)">📋</button>
+      <div class="aluno-reg-btns" style="flex-wrap:wrap;gap:4px;">
+        <button class="status-btn presente ${st==='presente'?'sel':''}" onclick="setStatus(${a.id},'presente',this)">✅ Presente</button>
+        <button class="status-btn ausente ${st==='ausente'?'sel':''}"  onclick="setStatus(${a.id},'ausente',this)">❌ Ausente</button>
+        <button class="status-btn atestado ${st==='atestado'?'sel':''}" onclick="setStatus(${a.id},'atestado',this)">📋 Atestado</button>
+        <button class="status-btn outros ${isOutros?'sel':''}" onclick="toggleObs(${a.id},this)">✏️ Outros</button>
       </div>
+      <input class="obs-input ${isOutros?'show':''}" id="obs_${a.id}" placeholder="Descreva a ocorrência..." value="${obs}" oninput="obsMap[${a.id}]=this.value" style="width:100%;margin-top:4px;box-sizing:border-box;"/>
     </div>`;
   }).join('');
   document.getElementById('modalReg').classList.add('open');
@@ -289,11 +297,31 @@ function setStatus(alunoId, status, btn) {
   statusMap[alunoId] = status;
   btn.closest('.aluno-reg-btns').querySelectorAll('.status-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');
+  // Esconde campo obs quando seleciona status padrão
+  const obs = document.getElementById('obs_'+alunoId);
+  if (obs) obs.classList.remove('show');
+}
+function toggleObs(alunoId, btn) {
+  const obs = document.getElementById('obs_'+alunoId);
+  const isOpen = obs.classList.toggle('show');
+  btn.closest('.aluno-reg-btns').querySelectorAll('.status-btn').forEach(b=>b.classList.remove('sel'));
+  if (isOpen) {
+    btn.classList.add('sel');
+    if (!obsMap[alunoId]) statusMap[alunoId] = 'outros';
+    obs.focus();
+  } else {
+    statusMap[alunoId] = 'presente';
+  }
 }
 async function salvarFrequencia() {
   const tid = document.getElementById('selTurma').value;
   if (!tid || !diaReg) return;
-  const payload = { data: diaReg, turma_id: parseInt(tid), registros: statusMap };
+  // Merge obs into registros
+  const registros = {};
+  Object.keys(statusMap).forEach(id => {
+    registros[id] = { status: statusMap[id], observacao: obsMap[id]||'' };
+  });
+  const payload = { data: diaReg, turma_id: parseInt(tid), registros };
   await fetch('/frequencia/api/registrar', {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
   });
