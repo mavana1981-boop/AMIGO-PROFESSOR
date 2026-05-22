@@ -152,7 +152,8 @@
     </div>
     <div class="mfoot">
       <button onclick="fecharModal('modalRel')" class="btn btn-outline btn-sm">Cancelar</button>
-      <button onclick="gerarRelatorio()" class="btn btn-primary btn-sm">Ver Relatório →</button>
+      <button onclick="gerarRelatorio('lista')" class="btn btn-outline btn-sm">📋 Ver como Lista</button>
+      <button onclick="gerarRelatorio('calendario')" class="btn btn-primary btn-sm">📅 Ver como Calendário</button>
     </div>
   </div>
 </div>
@@ -277,18 +278,19 @@ let tipoRel = 'mes';
 function abrirRelatorio() { document.getElementById('modalRel').classList.add('open'); }
 function selecionarTipo(t) {
   tipoRel = t;
+  const mapa = {mes:'grpMeses', ano:'grpAno', custom:'grpCustom'};
   ['mes','ano','custom'].forEach(x => {
     document.getElementById('rTipo'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('active', x===t);
-    const grp = document.getElementById('grp'+x.charAt(0).toUpperCase()+x.slice(1));
+    const grp = document.getElementById(mapa[x]);
     if (grp) grp.style.display = x===t ? 'block' : 'none';
   });
 }
 function toggleMes(el) { el.classList.toggle('sel'); }
-function gerarRelatorio() {
+function gerarRelatorio(formato) {
   const turma = document.getElementById('rTurma')?.value || '';
-  let params = `turma_id=${turma}`;
+  let params = `turma_id=${turma}&formato=${formato}`;
   if (tipoRel === 'mes') {
-    const ano  = document.getElementById('rAnoMes').value;
+    const ano   = document.getElementById('rAnoMes').value;
     const meses = [...document.querySelectorAll('.mes-chip.sel')].map(e => e.dataset.mes);
     if (!meses.length) { alert('Selecione pelo menos um mês.'); return; }
     params += `&tipo=mes&ano=${ano}&meses=${meses.join(',')}`;
