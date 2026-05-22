@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, jsonify
 from flask_login import login_required, current_user
 from routes.pdf_header import cabecalho_pdf
 from app import db
@@ -53,26 +53,11 @@ def periodo_label(filtro, ano, mes, bimestre, semestre):
 @plan_bp.route("/")
 @login_required
 def index():
-    hoje     = date.today()
-    filtro   = request.args.get("filtro", "semana")
-    ano      = request.args.get("ano", hoje.year, type=int)
-    mes      = request.args.get("mes", hoje.month, type=int)
-    bimestre = request.args.get("bimestre", 1, type=int)
-    semestre = request.args.get("semestre", 1, type=int)
-    turma_id = request.args.get("turma_id", type=int)
-
+    hoje   = date.today()
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
-    query  = PlanoAula.query.filter_by(professor_id=current_user.id)
-    query  = aplicar_filtro_plano(query, filtro, ano, mes, bimestre, semestre)
-    if turma_id:
-        query = query.filter_by(turma_id=turma_id)
-    planos = query.order_by(PlanoAula.data_aula.desc()).all()
-
+    turma_id = request.args.get("turma_id", type=int)
     return render_template("planejamento/index.html",
-        planos=planos, turmas=turmas, filtro=filtro,
-        turma_id=turma_id, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre,
-        hoje=hoje,
-    )
+        turmas=turmas, turma_id=turma_id, hoje=hoje)
 
 
 @plan_bp.route("/novo", methods=["GET", "POST"])
@@ -670,3 +655,86 @@ def _pdf_calendario_planos(planos, periodo_label, turma_nome, prof_nome, filtro,
     doc.build(story)
     buf.seek(0)
     return buf
+
+
+# ── API: planos do mês ────────────────────────────────────────────────────────
+
+@plan_bp.route("/api/planos")
+@login_required
+def api_planos():
+    """Retorna planos do mês como JSON para o calendário."""
+    hoje     = date.today()
+    ano      = request.args.get("ano",  hoje.year,  type=int)
+    mes      = request.args.get("mes",  hoje.month, type=int)
+    turma_id = request.args.get("turma_id", type=int)
+
+    q = PlanoAula.query.filter(
+        PlanoAula.professor_id == current_user.id,
+        db.extract("year",  PlanoAula.data_aula) == ano,
+        db.extract("month", PlanoAula.data_aula) == mes,
+    )
+    if turma_id:
+        q = q.filter_by(turma_id=turma_id)
+
+    return jsonify([{
+        "id":         p.id,
+        "titulo":     p.titulo,
+        "data_aula":  p.data_aula.strftime("%Y-%m-%d"),
+        "data_fmt":   p.data_aula.strftime("%d/%m/%Y"),
+        "turma":      p.turma.nome if p.turma else None,
+        "bimestre":   p.bimestre,
+        "conteudo":   p.conteudo or "",
+        "objetivos":  p.objetivos or "",
+        "metodologia":p.metodologia or "",
+        "recursos":   p.recursos or "",
+    } for p in q.order_by(PlanoAula.data_aula).all()])
+
+
+# ── Preview relatório de planejamento (web, imprimível) ───────────────────────
+
+@plan_bp.route("/relatorio-preview")
+@login_required
+def relatorio_preview():
+    import calendar as cal_mod
+    hoje     = date.today()
+    tipo     = request.args.get("tipo", "mes")
+    turma_id = request.args.get("turma_id", type=int)
+    turmas   = Turma.query.filter_by(professor_id=current_user.id).all()
+    t_nome   = next((t.nome for t in turmas if t.id==turma_id), "Todas as turmas") if turma_id else "Todas as turmas"
+
+    # Definir range
+    if tipo == "mes":
+        ano   = request.args.get("ano", hoje.year, type=int)
+        meses = [int(m) for m in request.args.get("meses", str(hoje.month)).split(",") if m]
+        datas = []
+        for m in meses:
+            last = cal_mod.monthrange(ano, m)[1]
+            datas.append((date(ano, m, 1), date(ano, m, last)))
+        MNOMES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+        label = f"{', '.join([MNOMES[m] for m in meses])}/{ano}"
+    elif tipo == "ano":
+        ano   = request.args.get("ano", hoje.year, type=int)
+        datas = [(date(ano, 1, 1), date(ano, 12, 31))]
+        label = f"Ano Letivo {ano}"
+    else:
+        di    = datetime.strptime(request.args.get("data_ini", hoje.replace(day=1).isoformat()), "%Y-%m-%d").date()
+        df    = datetime.strptime(request.args.get("data_fim", hoje.isoformat()), "%Y-%m-%d").date()
+        datas = [(di, df)]
+        label = f"{di.strftime('%d/%m/%Y')} a {df.strftime('%d/%m/%Y')}"
+
+    # Buscar planos
+    planos = []
+    for (di, df) in datas:
+        q = PlanoAula.query.filter(
+            PlanoAula.professor_id == current_user.id,
+            PlanoAula.data_aula >= di,
+            PlanoAula.data_aula <= df,
+        )
+        if turma_id:
+            q = q.filter_by(turma_id=turma_id)
+        planos.extend(q.order_by(PlanoAula.data_aula).all())
+
+    return render_template("planejamento/relatorio_preview.html",
+        planos=planos, label=label, turma_nome=t_nome,
+        prof_nome=current_user.nome, escola=current_user.escola or "",
+    )
