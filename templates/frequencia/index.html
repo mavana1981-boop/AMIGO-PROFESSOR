@@ -110,6 +110,7 @@
     </div>
     <div class="mfoot">
       <button onclick="fecharModal('modalReg')" class="btn btn-outline btn-sm">Cancelar</button>
+      <button onclick="excluirFrequenciaDia()" class="btn btn-danger btn-sm" id="btnExcluirFreq" style="display:none;">🗑 Excluir dia</button>
       <button onclick="salvarFrequencia()" class="btn btn-primary btn-sm">Salvar Frequência</button>
     </div>
   </div>
@@ -288,6 +289,9 @@ function abrirRegistrar(data) {
       <input class="obs-input ${isOutros?'show':''}" id="obs_${a.id}" placeholder="Descreva a ocorrência..." value="${obs}" oninput="obsMap[${a.id}]=this.value" style="width:100%;margin-top:4px;box-sizing:border-box;"/>
     </div>`;
   }).join('');
+  // Mostrar botão excluir só se já há registros
+  const btnEx = document.getElementById('btnExcluirFreq');
+  if (btnEx) btnEx.style.display = (dadosMes[data] && dadosMes[data].length > 0) ? 'inline-flex' : 'none';
   document.getElementById('modalReg').classList.add('open');
 }
 function abrirRegistrar2(){ abrirRegistrar(
@@ -357,6 +361,16 @@ function gerarRelatorio(){
   window.location.href=`/frequencia/relatorio-preview?${params}`;
 }
 
+async function excluirFrequenciaDia() {
+  if (!diaReg || !confirm('Remover todos os registros de frequência deste dia?')) return;
+  const tid = document.getElementById('selTurma').value;
+  await fetch('/frequencia/api/excluir-dia', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({data: diaReg, turma_id: tid ? parseInt(tid) : null})
+  });
+  fecharModal('modalReg');
+  carregarMes(anoAtual, mesAtual);
+}
 function fecharModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 
