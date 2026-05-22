@@ -19,17 +19,24 @@ def index():
 @login_required
 def nova():
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
+    if not turmas:
+        flash("Cadastre uma turma antes de criar avaliações.", "warning")
+        return redirect(url_for("turmas.nova"))
     if request.method == "POST":
+        try:
+            data_ap = datetime.strptime(request.form["data_aplicacao"], "%Y-%m-%d").date() if request.form.get("data_aplicacao") else None
+        except ValueError:
+            data_ap = None
         av = Avaliacao(
-            titulo=request.form["titulo"],
-            tipo=request.form.get("tipo"),
-            data_aplicacao=datetime.strptime(request.form["data_aplicacao"], "%Y-%m-%d").date() if request.form.get("data_aplicacao") else None,
+            titulo=request.form.get("titulo","").strip() or "Sem título",
+            tipo=request.form.get("tipo") or None,
+            data_aplicacao=data_ap,
             valor_total=request.form.get("valor_total", 10.0, type=float),
-            descricao=request.form.get("descricao"),
-            gabarito=request.form.get("gabarito"),
+            descricao=request.form.get("descricao") or None,
+            gabarito=request.form.get("gabarito") or None,
             bimestre=request.form.get("bimestre", type=int),
             professor_id=current_user.id,
-            turma_id=request.form.get("turma_id", type=int),
+            turma_id=request.form.get("turma_id", type=int) or None,
         )
         db.session.add(av)
         db.session.commit()
