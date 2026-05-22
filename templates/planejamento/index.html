@@ -1,478 +1,310 @@
 {% extends "base.html" %}
-{% block title %}Planejamento
-<!-- Modal seleção período calendário -->
-<div class="modal-ov" id="modalCal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;">
-    <div style="padding:20px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;">
-      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📅 Visualizar Calendário</h3>
-      <button onclick="fecharModalCal()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
-    </div>
-    <form id="formCal" method="GET" action="{{ url_for('planejamento.calendario_web') }}">
-      <div style="padding:24px;display:grid;gap:16px;">
-        <div>
-          <label class="form-label" style="font-size:.75rem;margin-bottom:6px;">PERÍODO</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="periodoBtns">
-            {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano letivo')] %}
-            <button type="button" class="filter-chip {% if filtro==f %}active{% endif %}" onclick="selecionarPeriodo('{{ f }}')">{{ lbl }}</button>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="filtro" id="calFiltro" value="{{ filtro }}">
-        </div>
-
-        <div id="calOpcoes" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div id="grpMes" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Mês</label>
-            <select name="mes" class="form-control" id="calMes">
-              {% set meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-              {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpBim" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Bimestre</label>
-            <select name="bimestre" class="form-control">
-              {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpSem" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Semestre</label>
-            <select name="semestre" class="form-control">
-              <option value="1" {% if semestre==1 %}selected{% endif %}>1º Semestre</option>
-              <option value="2" {% if semestre==2 %}selected{% endif %}>2º Semestre</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="font-size:.75rem;">Ano</label>
-            <select name="ano" class="form-control">
-              {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-            </select>
-          </div>
-        </div>
-
-        {% if turmas %}
-        <div>
-          <label class="form-label" style="font-size:.75rem;">TURMA</label>
-          <select name="turma_id" class="form-control">
-            <option value="">Todas as turmas</option>
-            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
-      </div>
-      <div style="padding:16px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" onclick="fecharModalCal()" class="btn btn-outline">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Abrir Calendário →</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<script>
-function abrirModalCalendario() {
-  const m = document.getElementById('modalCal');
-  m.style.display = 'flex';
-  atualizarGrupos(document.getElementById('calFiltro').value);
-}
-function fecharModalCal() {
-  document.getElementById('modalCal').style.display = 'none';
-}
-function selecionarPeriodo(f) {
-  document.getElementById('calFiltro').value = f;
-  document.querySelectorAll('#periodoBtns .filter-chip').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  atualizarGrupos(f);
-}
-function atualizarGrupos(f) {
-  document.getElementById('grpMes').style.display  = f==='mes'      ? 'block' : 'none';
-  document.getElementById('grpBim').style.display  = f==='bimestre' ? 'block' : 'none';
-  document.getElementById('grpSem').style.display  = f==='semestre' ? 'block' : 'none';
-}
-document.getElementById('modalCal').addEventListener('click', function(e){
-  if(e.target===this) fecharModalCal();
-});
-// Init
-atualizarGrupos(document.getElementById('calFiltro').value);
-</script>
-
-{% endblock %}
-{% block page_title %}Planejamento de Aulas
-<!-- Modal seleção período calendário -->
-<div class="modal-ov" id="modalCal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;">
-    <div style="padding:20px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;">
-      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📅 Visualizar Calendário</h3>
-      <button onclick="fecharModalCal()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
-    </div>
-    <form id="formCal" method="GET" action="{{ url_for('planejamento.calendario_web') }}">
-      <div style="padding:24px;display:grid;gap:16px;">
-        <div>
-          <label class="form-label" style="font-size:.75rem;margin-bottom:6px;">PERÍODO</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="periodoBtns">
-            {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano letivo')] %}
-            <button type="button" class="filter-chip {% if filtro==f %}active{% endif %}" onclick="selecionarPeriodo('{{ f }}')">{{ lbl }}</button>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="filtro" id="calFiltro" value="{{ filtro }}">
-        </div>
-
-        <div id="calOpcoes" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div id="grpMes" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Mês</label>
-            <select name="mes" class="form-control" id="calMes">
-              {% set meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-              {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpBim" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Bimestre</label>
-            <select name="bimestre" class="form-control">
-              {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpSem" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Semestre</label>
-            <select name="semestre" class="form-control">
-              <option value="1" {% if semestre==1 %}selected{% endif %}>1º Semestre</option>
-              <option value="2" {% if semestre==2 %}selected{% endif %}>2º Semestre</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="font-size:.75rem;">Ano</label>
-            <select name="ano" class="form-control">
-              {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-            </select>
-          </div>
-        </div>
-
-        {% if turmas %}
-        <div>
-          <label class="form-label" style="font-size:.75rem;">TURMA</label>
-          <select name="turma_id" class="form-control">
-            <option value="">Todas as turmas</option>
-            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
-      </div>
-      <div style="padding:16px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" onclick="fecharModalCal()" class="btn btn-outline">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Abrir Calendário →</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<script>
-function abrirModalCalendario() {
-  const m = document.getElementById('modalCal');
-  m.style.display = 'flex';
-  atualizarGrupos(document.getElementById('calFiltro').value);
-}
-function fecharModalCal() {
-  document.getElementById('modalCal').style.display = 'none';
-}
-function selecionarPeriodo(f) {
-  document.getElementById('calFiltro').value = f;
-  document.querySelectorAll('#periodoBtns .filter-chip').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  atualizarGrupos(f);
-}
-function atualizarGrupos(f) {
-  document.getElementById('grpMes').style.display  = f==='mes'      ? 'block' : 'none';
-  document.getElementById('grpBim').style.display  = f==='bimestre' ? 'block' : 'none';
-  document.getElementById('grpSem').style.display  = f==='semestre' ? 'block' : 'none';
-}
-document.getElementById('modalCal').addEventListener('click', function(e){
-  if(e.target===this) fecharModalCal();
-});
-// Init
-atualizarGrupos(document.getElementById('calFiltro').value);
-</script>
-
-{% endblock %}
+{% block title %}Planejamento{% endblock %}
+{% block page_title %}Planejamento de Aulas{% endblock %}
 {% block topbar_actions %}
-  <a href="{{ url_for('planejamento.relatorio', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">📊 Relatório</a>
-  <button onclick="abrirModalCalendario()" class="btn btn-outline btn-sm">📅 Calendário</button>
+  <select id="selTurma" class="form-control" style="width:auto;font-size:.8rem;" onchange="trocarTurma(this.value)">
+    <option value="">Todas as turmas</option>
+    {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+  </select>
+  <button onclick="abrirRelatorio()" class="btn btn-outline btn-sm">📊 Relatórios</button>
   <a href="{{ url_for('planejamento.novo') }}" class="btn btn-accent btn-sm">+ Novo Plano</a>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* ── Navegação mês ── */
+.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.cal-nav-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cal-nav-btn:hover{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.cal-nav-title{font-size:1.1rem;font-weight:800;color:var(--navy-900);min-width:180px;text-align:center;}
+.cal-hoje-btn{padding:5px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:.8rem;font-weight:600;cursor:pointer;color:var(--navy-700);}
+.cal-hoje-btn:hover{background:var(--navy-50);}
 
-<!-- Modal seleção período calendário -->
-<div class="modal-ov" id="modalCal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;">
-    <div style="padding:20px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;">
-      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📅 Visualizar Calendário</h3>
-      <button onclick="fecharModalCal()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+/* ── Grid ── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:12px;overflow:hidden;background:var(--neutral-200);gap:1px;}
+.cal-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:8px 4px;text-transform:uppercase;letter-spacing:.05em;}
+.cal-cell{min-height:110px;background:white;padding:7px 8px;position:relative;transition:background .1s;cursor:default;}
+.cal-cell:hover{background:var(--navy-50);}
+.cal-cell.vazio{background:var(--neutral-50);cursor:default;}
+.cal-cell.fds{background:#f8f9fa;}
+.cal-cell.hoje-cell{background:var(--navy-50);}
+.cal-cell.hoje-cell .cal-dia{background:var(--navy-700);color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-cell.vazio .cal-dia,.cal-cell.fds .cal-dia{color:var(--neutral-300);}
+.cal-event{font-size:.7rem;line-height:1.4;color:var(--navy-800);background:var(--amber-50);border-left:3px solid var(--amber-400);border-radius:0 5px 5px 0;padding:3px 6px;margin-bottom:3px;cursor:pointer;transition:background .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-event:hover{background:var(--amber-100);}
+.cal-add{font-size:.65rem;color:var(--neutral-300);margin-top:4px;cursor:pointer;display:none;padding:2px 4px;border-radius:4px;}
+.cal-cell:hover .cal-add{display:block;color:var(--navy-400);}
+.cal-add:hover{background:var(--navy-100);color:var(--navy-700)!important;}
+
+/* ── Modal plano ── */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;}
+.mov.open{display:flex;}
+.mbox{background:white;border-radius:16px;width:min(540px,95vw);max-height:85vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);}
+.mhead{padding:18px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1;}
+.mbody{padding:20px 24px;}
+.mfoot{padding:14px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:white;}
+.detail-row{margin-bottom:14px;}
+.detail-label{font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+.detail-val{font-size:.875rem;color:var(--navy-900);white-space:pre-wrap;}
+
+/* ── Modal relatório ── */
+.rel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.rel-chip{padding:6px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);transition:all .15s;}
+.rel-chip.active{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.meses-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.mes-chip{padding:7px 4px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);text-align:center;transition:all .15s;}
+.mes-chip.sel{background:var(--amber-500);color:white;border-color:var(--amber-500);}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Navegação mês -->
+<div class="cal-nav">
+  <button class="cal-nav-btn" onclick="mudarMes(-1)">‹</button>
+  <div class="cal-nav-title" id="navTitle"></div>
+  <button class="cal-nav-btn" onclick="mudarMes(1)">›</button>
+  <button class="cal-hoje-btn" onclick="irHoje()">Hoje</button>
+</div>
+
+<!-- Calendário -->
+<div class="cal-grid" id="calGrid">
+  {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+  <div class="cal-dow">{{ d }}</div>
+  {% endfor %}
+  <!-- células preenchidas via JS -->
+</div>
+
+<!-- Modal: detalhe do plano -->
+<div class="mov" id="modalPlano">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 id="mpTitulo" style="font-weight:800;font-size:1rem;color:var(--navy-900);"></h3>
+      <button onclick="fecharModal('modalPlano')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
     </div>
-    <form id="formCal" method="GET" action="{{ url_for('planejamento.calendario_web') }}">
-      <div style="padding:24px;display:grid;gap:16px;">
-        <div>
-          <label class="form-label" style="font-size:.75rem;margin-bottom:6px;">PERÍODO</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="periodoBtns">
-            {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano letivo')] %}
-            <button type="button" class="filter-chip {% if filtro==f %}active{% endif %}" onclick="selecionarPeriodo('{{ f }}')">{{ lbl }}</button>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="filtro" id="calFiltro" value="{{ filtro }}">
-        </div>
-
-        <div id="calOpcoes" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div id="grpMes" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Mês</label>
-            <select name="mes" class="form-control" id="calMes">
-              {% set meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-              {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpBim" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Bimestre</label>
-            <select name="bimestre" class="form-control">
-              {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpSem" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Semestre</label>
-            <select name="semestre" class="form-control">
-              <option value="1" {% if semestre==1 %}selected{% endif %}>1º Semestre</option>
-              <option value="2" {% if semestre==2 %}selected{% endif %}>2º Semestre</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="font-size:.75rem;">Ano</label>
-            <select name="ano" class="form-control">
-              {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-            </select>
-          </div>
-        </div>
-
-        {% if turmas %}
-        <div>
-          <label class="form-label" style="font-size:.75rem;">TURMA</label>
-          <select name="turma_id" class="form-control">
-            <option value="">Todas as turmas</option>
-            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
-      </div>
-      <div style="padding:16px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" onclick="fecharModalCal()" class="btn btn-outline">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Abrir Calendário →</button>
-      </div>
-    </form>
+    <div class="mbody" id="mpBody"></div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalPlano')" class="btn btn-outline btn-sm">Fechar</button>
+      <a id="mpEditar" href="#" class="btn btn-primary btn-sm">✏ Editar</a>
+      <a id="mpExcluir" href="#" class="btn btn-danger btn-sm" onclick="return confirm('Excluir este plano?')">🗑 Excluir</a>
+    </div>
   </div>
 </div>
 
-<script>
-function abrirModalCalendario() {
-  const m = document.getElementById('modalCal');
-  m.style.display = 'flex';
-  atualizarGrupos(document.getElementById('calFiltro').value);
-}
-function fecharModalCal() {
-  document.getElementById('modalCal').style.display = 'none';
-}
-function selecionarPeriodo(f) {
-  document.getElementById('calFiltro').value = f;
-  document.querySelectorAll('#periodoBtns .filter-chip').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  atualizarGrupos(f);
-}
-function atualizarGrupos(f) {
-  document.getElementById('grpMes').style.display  = f==='mes'      ? 'block' : 'none';
-  document.getElementById('grpBim').style.display  = f==='bimestre' ? 'block' : 'none';
-  document.getElementById('grpSem').style.display  = f==='semestre' ? 'block' : 'none';
-}
-document.getElementById('modalCal').addEventListener('click', function(e){
-  if(e.target===this) fecharModalCal();
-});
-// Init
-atualizarGrupos(document.getElementById('calFiltro').value);
-</script>
+<!-- Modal: relatórios -->
+<div class="mov" id="modalRel">
+  <div class="mbox" style="max-height:90vh;">
+    <div class="mhead">
+      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📊 Gerar Relatório</h3>
+      <button onclick="fecharModal('modalRel')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="margin-bottom:16px;">
+        <div class="detail-label" style="margin-bottom:6px;">Tipo de período</div>
+        <div class="rel-chips">
+          <div class="rel-chip active" id="rTipoMes" onclick="selecionarTipo('mes')">Por meses</div>
+          <div class="rel-chip" id="rTipoAno" onclick="selecionarTipo('ano')">Ano letivo</div>
+          <div class="rel-chip" id="rTipoCustom" onclick="selecionarTipo('custom')">Período personalizado</div>
+        </div>
+      </div>
 
-{% endblock %}
-{% block content %}
-
-<!-- Filtros -->
-<div class="card" style="margin-bottom:20px;">
-  <div class="card-body" style="padding:14px 20px;">
-    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
-      <div>
-        <div class="form-label" style="font-size:.75rem;margin-bottom:6px;">Período</div>
-        <div style="display:flex;gap:4px;">
-          {% for f,lbl in [('semana','Semana'),('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
-          <a href="{{ url_for('planejamento.index', filtro=f, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}"
-             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 12px;font-size:.8rem;">{{ lbl }}</a>
+      <!-- Meses -->
+      <div id="grpMeses">
+        <div class="detail-label" style="margin-bottom:6px;">Selecione os meses (pode escolher mais de um)</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <select id="rAnoMes" class="form-control" style="width:auto;font-size:.8rem;">
+            {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==hoje.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="meses-grid">
+          {% for i,m in [(1,'Jan'),(2,'Fev'),(3,'Mar'),(4,'Abr'),(5,'Mai'),(6,'Jun'),(7,'Jul'),(8,'Ago'),(9,'Set'),(10,'Out'),(11,'Nov'),(12,'Dez')] %}
+          <div class="mes-chip {% if i==hoje.month %}sel{% endif %}" data-mes="{{ i }}" onclick="toggleMes(this)">{{ m }}</div>
           {% endfor %}
         </div>
       </div>
 
-      <form method="GET" action="{{ url_for('planejamento.index') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-        <input type="hidden" name="filtro" value="{{ filtro }}">
-        {% if filtro == 'mes' %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Mês</label>
-          <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for i,m in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],1) %}
-            <option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ m }}</option>{% endfor %}
-          </select>
-        </div>
-        {% elif filtro == 'bimestre' %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Bimestre</label>
-          <select name="bimestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
-          </select>
-        </div>
-        {% elif filtro == 'semestre' %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Semestre</label>
-          <select name="semestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
-            <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
-          </select>
-        </div>
-        {% endif %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Ano</label>
-          <select name="ano" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-          </select>
-        </div>
-        {% if turmas %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Turma</label>
-          <select name="turma_id" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            <option value="">Todas</option>
-            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
-        <input type="hidden" name="mes" value="{{ mes }}">
-        <input type="hidden" name="bimestre" value="{{ bimestre }}">
-        <input type="hidden" name="semestre" value="{{ semestre }}">
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Lista de planos -->
-<div class="card">
-  <div class="card-header">
-    <span class="card-title">{{ planos|length }} plano(s) no período</span>
-    <a href="{{ url_for('planejamento.relatorio_pdf', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">⬇ PDF</a>
-  </div>
-  <div class="table-wrapper">
-    <table class="table">
-      <thead><tr><th>Data</th><th>Título</th><th>Turma</th><th>Bimestre</th><th>Semestre</th><th>Ações</th></tr></thead>
-      <tbody>
-        {% for p in planos %}
-        <tr>
-          <td class="text-sm">{{ p.data_aula.strftime('%d/%m/%Y') }}</td>
-          <td class="fw-700">{{ p.titulo }}</td>
-          <td class="text-sm text-muted">{{ p.turma.nome if p.turma else '—' }}</td>
-          <td>{% if p.bimestre %}<span class="badge badge-navy">{{ p.bimestre }}º Bim</span>{% else %}—{% endif %}</td>
-          <td>{% if p.semestre %}<span class="badge badge-blue">{{ p.semestre }}º Sem</span>{% else %}—{% endif %}</td>
-          <td>
-            <div class="d-flex gap-2">
-              <a href="{{ url_for('planejamento.editar', id=p.id) }}" class="btn btn-outline btn-sm">Editar</a>
-              <form method="POST" action="{{ url_for('planejamento.excluir', id=p.id) }}" data-confirm="Excluir este plano?">
-                <button type="submit" class="btn btn-danger btn-sm">✕</button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="empty-state">Nenhum plano no período. <a href="{{ url_for('planejamento.novo') }}">Criar novo</a></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Modal seleção período calendário -->
-<div class="modal-ov" id="modalCal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;">
-    <div style="padding:20px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;">
-      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📅 Visualizar Calendário</h3>
-      <button onclick="fecharModalCal()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
-    </div>
-    <form id="formCal" method="GET" action="{{ url_for('planejamento.calendario_web') }}">
-      <div style="padding:24px;display:grid;gap:16px;">
-        <div>
-          <label class="form-label" style="font-size:.75rem;margin-bottom:6px;">PERÍODO</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="periodoBtns">
-            {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano letivo')] %}
-            <button type="button" class="filter-chip {% if filtro==f %}active{% endif %}" onclick="selecionarPeriodo('{{ f }}')">{{ lbl }}</button>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="filtro" id="calFiltro" value="{{ filtro }}">
-        </div>
-
-        <div id="calOpcoes" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div id="grpMes" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Mês</label>
-            <select name="mes" class="form-control" id="calMes">
-              {% set meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-              {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpBim" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Bimestre</label>
-            <select name="bimestre" class="form-control">
-              {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
-            </select>
-          </div>
-          <div id="grpSem" style="display:none;">
-            <label class="form-label" style="font-size:.75rem;">Semestre</label>
-            <select name="semestre" class="form-control">
-              <option value="1" {% if semestre==1 %}selected{% endif %}>1º Semestre</option>
-              <option value="2" {% if semestre==2 %}selected{% endif %}>2º Semestre</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="font-size:.75rem;">Ano</label>
-            <select name="ano" class="form-control">
-              {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-            </select>
-          </div>
-        </div>
-
-        {% if turmas %}
-        <div>
-          <label class="form-label" style="font-size:.75rem;">TURMA</label>
-          <select name="turma_id" class="form-control">
-            <option value="">Todas as turmas</option>
-            {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
+      <!-- Ano -->
+      <div id="grpAno" style="display:none;">
+        <div class="detail-label" style="margin-bottom:6px;">Ano letivo</div>
+        <select id="rAnoAno" class="form-control" style="width:auto;">
+          {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==hoje.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
       </div>
-      <div style="padding:16px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" onclick="fecharModalCal()" class="btn btn-outline">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Abrir Calendário →</button>
+
+      <!-- Personalizado -->
+      <div id="grpCustom" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><div class="detail-label" style="margin-bottom:4px;">De</div>
+            <input type="date" id="rDataIni" class="form-control" value="{{ hoje.replace(day=1).isoformat() }}"/></div>
+          <div><div class="detail-label" style="margin-bottom:4px;">Até</div>
+            <input type="date" id="rDataFim" class="form-control" value="{{ hoje.isoformat() }}"/></div>
+        </div>
       </div>
-    </form>
+
+      {% if turmas %}
+      <div style="margin-top:16px;">
+        <div class="detail-label" style="margin-bottom:4px;">Turma</div>
+        <select id="rTurma" class="form-control" style="width:auto;">
+          <option value="">Todas as turmas</option>
+          {% for t in turmas %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalRel')" class="btn btn-outline btn-sm">Cancelar</button>
+      <button onclick="gerarRelatorio()" class="btn btn-primary btn-sm">Ver Relatório →</button>
+    </div>
   </div>
 </div>
 
 <script>
-function abrirModalCalendario() {
-  const m = document.getElementById('modalCal');
-  m.style.display = 'flex';
-  atualizarGrupos(document.getElementById('calFiltro').value);
-}
-function fecharModalCal() {
-  document.getElementById('modalCal').style.display = 'none';
-}
-function selecionarPeriodo(f) {
-  document.getElementById('calFiltro').value = f;
-  document.querySelectorAll('#periodoBtns .filter-chip').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  atualizarGrupos(f);
-}
-function atualizarGrupos(f) {
-  document.getElementById('grpMes').style.display  = f==='mes'      ? 'block' : 'none';
-  document.getElementById('grpBim').style.display  = f==='bimestre' ? 'block' : 'none';
-  document.getElementById('grpSem').style.display  = f==='semestre' ? 'block' : 'none';
-}
-document.getElementById('modalCal').addEventListener('click', function(e){
-  if(e.target===this) fecharModalCal();
-});
-// Init
-atualizarGrupos(document.getElementById('calFiltro').value);
-</script>
+const HOJE   = { ano: {{ hoje.year }}, mes: {{ hoje.month }}, dia: {{ hoje.day }} };
+const MESES  = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const TURMA_ID = {{ turma_id or 'null' }};
 
+let anoAtual = HOJE.ano;
+let mesAtual = HOJE.mes;
+let todosPlanos = [];
+
+// ── Busca planos do servidor ──────────────────────────────────────────────────
+async function carregarPlanos(ano, mes) {
+  const tid = document.getElementById('selTurma').value;
+  const url = `/planejamento/api/planos?ano=${ano}&mes=${mes}${tid ? '&turma_id='+tid : ''}`;
+  const r   = await fetch(url);
+  todosPlanos = await r.json();
+  renderizarCalendario(ano, mes);
+}
+
+// ── Renderiza o calendário ────────────────────────────────────────────────────
+function renderizarCalendario(ano, mes) {
+  document.getElementById('navTitle').textContent = `${MESES[mes]} ${ano}`;
+  const grid  = document.getElementById('calGrid');
+  // Remove cells (keep headers)
+  while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  // Dia da semana do 1º (0=Dom, ajustamos para Seg=0)
+  let inicio = new Date(ano, mes-1, 1).getDay(); // 0=Dom
+  inicio = (inicio + 6) % 7; // converte para Seg=0
+
+  // Dias do mês anterior (vazios)
+  for (let i = 0; i < inicio; i++) {
+    grid.insertAdjacentHTML('beforeend', '<div class="cal-cell vazio"></div>');
+  }
+
+  // Planos por dia
+  const pMap = {};
+  todosPlanos.forEach(p => {
+    const d = p.data_aula; // YYYY-MM-DD
+    if (!pMap[d]) pMap[d] = [];
+    pMap[d].push(p);
+  });
+
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const dow    = (inicio + dia - 1) % 7; // 0=Seg 5=Sab 6=Dom
+    const fds    = dow >= 5;
+    const isHoje = ano === HOJE.ano && mes === HOJE.mes && dia === HOJE.dia;
+    const dStr   = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const ps     = pMap[dStr] || [];
+
+    let cls = 'cal-cell';
+    if (fds)    cls += ' fds';
+    if (isHoje) cls += ' hoje-cell';
+
+    let inner = `<div class="cal-dia">${dia}</div>`;
+    ps.forEach(p => {
+      inner += `<div class="cal-event" onclick="abrirPlano(${p.id})" title="${p.titulo}">${p.titulo}</div>`;
+    });
+    inner += `<div class="cal-add" onclick="novoPlano('${dStr}')">+ plano</div>`;
+    grid.insertAdjacentHTML('beforeend', `<div class="${cls}">${inner}</div>`);
+  }
+
+  // Completar última semana
+  const total   = inicio + diasNoMes;
+  const restante = (7 - (total % 7)) % 7;
+  for (let i = 0; i < restante; i++) {
+    grid.insertAdjacentHTML('beforeend', '<div class="cal-cell vazio"></div>');
+  }
+}
+
+// ── Navegação ─────────────────────────────────────────────────────────────────
+function mudarMes(delta) {
+  mesAtual += delta;
+  if (mesAtual > 12) { mesAtual = 1; anoAtual++; }
+  if (mesAtual < 1)  { mesAtual = 12; anoAtual--; }
+  carregarPlanos(anoAtual, mesAtual);
+}
+function irHoje() {
+  anoAtual = HOJE.ano; mesAtual = HOJE.mes;
+  carregarPlanos(anoAtual, mesAtual);
+}
+function trocarTurma(v) {
+  carregarPlanos(anoAtual, mesAtual);
+}
+
+// ── Modal plano ───────────────────────────────────────────────────────────────
+function abrirPlano(id) {
+  const p = todosPlanos.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('mpTitulo').textContent = p.titulo;
+  document.getElementById('mpEditar').href  = `/planejamento/editar/${id}`;
+  document.getElementById('mpExcluir').href = `/planejamento/excluir/${id}`;
+  document.getElementById('mpExcluir').onclick = function() {
+    if (!confirm('Excluir este plano?')) return false;
+    fetch(`/planejamento/excluir/${id}`, {method:'POST'})
+      .then(() => { fecharModal('modalPlano'); carregarPlanos(anoAtual, mesAtual); });
+    return false;
+  };
+  const campos = [
+    ['Data',        p.data_fmt],
+    ['Turma',       p.turma],
+    ['Bimestre',    p.bimestre ? p.bimestre+'º Bimestre' : null],
+    ['Conteúdo',    p.conteudo],
+    ['Objetivos',   p.objetivos],
+    ['Metodologia', p.metodologia],
+    ['Recursos',    p.recursos],
+  ];
+  document.getElementById('mpBody').innerHTML = campos
+    .filter(([,v]) => v)
+    .map(([l,v]) => `<div class="detail-row"><div class="detail-label">${l}</div><div class="detail-val">${v}</div></div>`)
+    .join('');
+  document.getElementById('modalPlano').classList.add('open');
+}
+function novoPlano(data) { window.location.href = `/planejamento/novo?data_aula=${data}`; }
+
+// ── Modal relatório ───────────────────────────────────────────────────────────
+let tipoRel = 'mes';
+function abrirRelatorio() { document.getElementById('modalRel').classList.add('open'); }
+function selecionarTipo(t) {
+  tipoRel = t;
+  ['mes','ano','custom'].forEach(x => {
+    document.getElementById('rTipo'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('active', x===t);
+    const grp = document.getElementById('grp'+x.charAt(0).toUpperCase()+x.slice(1));
+    if (grp) grp.style.display = x===t ? 'block' : 'none';
+  });
+}
+function toggleMes(el) { el.classList.toggle('sel'); }
+function gerarRelatorio() {
+  const turma = document.getElementById('rTurma')?.value || '';
+  let params = `turma_id=${turma}`;
+  if (tipoRel === 'mes') {
+    const ano  = document.getElementById('rAnoMes').value;
+    const meses = [...document.querySelectorAll('.mes-chip.sel')].map(e => e.dataset.mes);
+    if (!meses.length) { alert('Selecione pelo menos um mês.'); return; }
+    params += `&tipo=mes&ano=${ano}&meses=${meses.join(',')}`;
+  } else if (tipoRel === 'ano') {
+    params += `&tipo=ano&ano=${document.getElementById('rAnoAno').value}`;
+  } else {
+    params += `&tipo=custom&data_ini=${document.getElementById('rDataIni').value}&data_fim=${document.getElementById('rDataFim').value}`;
+  }
+  fecharModal('modalRel');
+  window.location.href = `/planejamento/relatorio-preview?${params}`;
+}
+
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.mov').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+// Init
+carregarPlanos(anoAtual, mesAtual);
+</script>
 {% endblock %}
