@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import login_required, current_user
+from routes.pdf_header import cabecalho_pdf
 from app import db
 from models.models import Turma, Aluno, Frequencia
 from datetime import date, datetime, timedelta
@@ -194,7 +195,7 @@ def relatorio_pdf(turma_id):
     for f in q.order_by(Frequencia.data).all():
         freq_por_aluno[f.aluno_id].append(f)
     label  = _periodo_label(filtro, ano, mes, bimestre, semestre)
-    buf    = _pdf_resumo(turma, alunos_rel, stats, freq_por_aluno, label)
+    buf    = _pdf_resumo(turma, alunos_rel, stats, freq_por_aluno, label, current_user.nome, current_user.escola or "")
     nome   = f"Frequencia_{turma.nome.replace(' ','_')}_{label.replace('/','_')}.pdf"
     return send_file(buf, as_attachment=True, download_name=nome, mimetype="application/pdf")
 
@@ -223,14 +224,14 @@ def relatorio_calendario(turma_id):
     meses  = _meses_do_periodo(filtro, valor, ano, mes)
     label  = _periodo_label(filtro, ano, mes, bimestre, semestre)
 
-    buf  = _pdf_calendario(alunos_rel, freq_por_aluno, stats, meses, label, turma)
+    buf  = _pdf_calendario(alunos_rel, freq_por_aluno, stats, meses, label, turma, current_user.nome, current_user.escola or "")
     nome = f"Calendario_Freq_{turma.nome.replace(' ','_')}_{label.replace('/','_')}.pdf"
     return send_file(buf, as_attachment=True, download_name=nome, mimetype="application/pdf")
 
 
 # ── PDF resumo com barras ─────────────────────────────────────────────────────
 
-def _pdf_resumo(turma, alunos, stats, freq_por_aluno, periodo_label):
+def _pdf_resumo(turma, alunos, stats, freq_por_aluno, periodo_label, prof_nome="", escola=""):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
     from reportlab.lib import colors
@@ -259,10 +260,10 @@ def _pdf_resumo(turma, alunos, stats, freq_por_aluno, periodo_label):
     T_body= ParagraphStyle("body", parent=SS["Normal"], fontSize=8, leading=11)
 
     story = []
+    cabecalho_pdf(story, prof_nome, escola, "Relatório de Frequência")
     story.append(Paragraph("Resumo de Frequência", T_h1))
     story.append(Paragraph(f"{turma.nome}  ·  Período: {periodo_label}", T_sub))
-    story.append(HRFlowable(width="100%", thickness=2, color=NAVY))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 4))
 
     # ── Tabela com mini-barras ────────────────────────────────────────────────
     BAR_W = 100  # pontos
@@ -374,7 +375,7 @@ def _make_bar(pct, width):
 
 # ── PDF calendário visual por aluno ──────────────────────────────────────────
 
-def _pdf_calendario(alunos, freq_por_aluno, stats, meses, periodo_label, turma):
+def _pdf_calendario(alunos, freq_por_aluno, stats, meses, periodo_label, turma, prof_nome="", escola=""):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import cm
     from reportlab.lib import colors
@@ -431,6 +432,7 @@ def _pdf_calendario(alunos, freq_por_aluno, stats, meses, periodo_label, turma):
     CELL_W = 3.85*cm  # largura de cada coluna de dia (landscape A4 ≈ 27cm útil / 7)
 
     story = []
+    cabecalho_pdf(story, prof_nome, escola, "Calendário de Frequência")
 
     for aluno in alunos:
         total, presentes, faltas, pct = stats.get(aluno.id, (0, 0, 0, None))
