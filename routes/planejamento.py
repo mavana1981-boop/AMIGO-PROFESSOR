@@ -78,12 +78,13 @@ def index():
 @login_required
 def novo():
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
+    data_aula_pre = request.args.get("data_aula", "")
     if request.method == "POST":
         try:
             data_aula = datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date()
         except (ValueError, KeyError):
             flash("Data da aula inválida.", "danger")
-            return render_template("planejamento/form.html", turmas=turmas, plano=None)
+            return render_template("planejamento/form.html", turmas=turmas, plano=None, data_aula_pre=data_aula_pre)
         plano = PlanoAula(
             titulo=request.form.get("titulo", "").strip() or "Sem título",
             data_aula=data_aula,
@@ -101,7 +102,7 @@ def novo():
         db.session.commit()
         flash("Plano criado!", "success")
         return redirect(url_for("planejamento.index"))
-    return render_template("planejamento/form.html", turmas=turmas, plano=None)
+    return render_template("planejamento/form.html", turmas=turmas, plano=None, data_aula_pre=data_aula_pre)
 
 
 @plan_bp.route("/editar/<int:id>", methods=["GET", "POST"])
@@ -285,6 +286,79 @@ def gerar_pdf_planejamento(planos, periodo_label, turma_nome, prof_nome):
     buf.seek(0)
     return buf
 
+
+
+@plan_bp.route("/calendario")
+@login_required
+def calendario_web():
+    """Calendário editável de planejamento — tela web com impressão."""
+    import calendar as cal_mod
+    hoje     = date.today()
+    filtro   = request.args.get("filtro",   "mes")
+    ano      = request.args.get("ano",       hoje.year,  type=int)
+    mes      = request.args.get("mes",       hoje.month, type=int)
+    bimestre = request.args.get("bimestre",  1,          type=int)
+    semestre = request.args.get("semestre",  1,          type=int)
+    turma_id = request.args.get("turma_id",  type=int)
+
+    turmas  = Turma.query.filter_by(professor_id=current_user.id).all()
+    query   = PlanoAula.query.filter_by(professor_id=current_user.id)
+    query   = aplicar_filtro_plano(query, filtro, ano, mes, bimestre, semestre)
+    if turma_id:
+        query = query.filter_by(turma_id=turma_id)
+    planos  = query.order_by(PlanoAula.data_aula).all()
+    label   = periodo_label(filtro, ano, mes, bimestre, semestre)
+    t_nome  = next((t.nome for t in turmas if t.id == turma_id), "Todas as turmas") if turma_id else "Todas as turmas"
+
+    # Meses a exibir
+    BIMESTRES_M = {1:(1,3),2:(4,6),3:(7,9),4:(10,12)}
+    SEMESTRES_M = {1:(1,6),2:(7,12)}
+    if filtro == "mes":
+        meses = [(ano, mes)]
+    elif filtro == "bimestre":
+        m1, m2 = BIMESTRES_M.get(bimestre, (1,3))
+        meses = [(ano, m) for m in range(m1, m2+1)]
+    elif filtro == "semestre":
+        m1, m2 = SEMESTRES_M.get(semestre, (1,6))
+        meses = [(ano, m) for m in range(m1, m2+1)]
+    else:
+        meses = [(ano, m) for m in range(1, 13)]
+
+    # Semanas por mês (calendário começa na segunda)
+    meses_semanas = {}
+    for (a, m) in meses:
+        c = cal_mod.Calendar(firstweekday=0)  # 0 = segunda
+        meses_semanas[(a, m)] = c.monthdayscalendar(a, m)
+
+    # Indexa planos por data string YYYY-MM-DD
+    planos_por_data = {}
+    for p in planos:
+        key = p.data_aula.strftime("%Y-%m-%d")
+        planos_por_data.setdefault(key, []).append(p)
+
+    # JSON dos planos para o modal JS
+    import json
+    planos_json = [{
+        "id":         p.id,
+        "titulo":     p.titulo,
+        "data_aula":  p.data_aula.strftime("%d/%m/%Y"),
+        "turma":      p.turma.nome if p.turma else None,
+        "bimestre":   p.bimestre,
+        "conteudo":   p.conteudo or "",
+        "objetivos":  p.objetivos or "",
+        "metodologia":p.metodologia or "",
+        "recursos":   p.recursos or "",
+    } for p in planos]
+
+    return render_template("planejamento/calendario_web.html",
+        planos=planos, planos_json=planos_json,
+        planos_por_data=planos_por_data,
+        meses=meses, meses_semanas=meses_semanas,
+        label=label, turma_nome=t_nome,
+        filtro=filtro, ano=ano, mes=mes,
+        bimestre=bimestre, semestre=semestre,
+        turma_id=turma_id,
+    )
 
 @plan_bp.route("/relatorio/calendario-pdf")
 @login_required
