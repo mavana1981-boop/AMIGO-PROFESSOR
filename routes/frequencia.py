@@ -260,7 +260,7 @@ def _pdf_resumo(turma, alunos, stats, freq_por_aluno, periodo_label):
 
     story = []
     story.append(Paragraph("Resumo de Frequência", T_h1))
-    story.append(Paragraph(f"{turma.nome}  ·  {periodo_label}  ·  {date.today().strftime('%d/%m/%Y')}", T_sub))
+    story.append(Paragraph(f"{turma.nome}  ·  Período: {periodo_label}", T_sub))
     story.append(HRFlowable(width="100%", thickness=2, color=NAVY))
     story.append(Spacer(1, 10))
 
