@@ -220,8 +220,8 @@ def _pdf_resumo(turma, alunos, stats, freq_por_aluno, periodo_label):
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                    TableStyle, HRFlowable, Drawing)
-    from reportlab.graphics.shapes import Rect, String as RLString
+                                    TableStyle, HRFlowable)
+    from reportlab.graphics.shapes import Drawing, Rect, String as RLString
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
     buf = io.BytesIO()
