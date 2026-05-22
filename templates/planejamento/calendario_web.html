@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Calendário de Planejamento{% endblock %}
+{% block page_title %}Calendário de Planejamento{% endblock %}
+{% block topbar_actions %}
+  <button onclick="window.print()" class="btn btn-accent btn-sm">🖨️ Imprimir</button>
+  <a href="{{ url_for('planejamento.relatorio_calendario_pdf', filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, turma_id=turma_id or '') }}" class="btn btn-outline btn-sm">⬇ PDF</a>
+  <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* ── Calendário web ── */
+.cal-wrapper { display: flex; flex-direction: column; gap: 32px; }
+.cal-month-title {
+  font-size: 1.125rem; font-weight: 800; color: var(--navy-900);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: .04em;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border: 1px solid var(--neutral-200); border-radius: 12px; overflow: hidden;
+}
+.cal-dow {
+  background: var(--navy-900); color: white;
+  font-size: .7rem; font-weight: 700; text-align: center;
+  padding: 8px 4px; text-transform: uppercase; letter-spacing: .05em;
+}
+.cal-cell {
+  min-height: 100px; border-right: 1px solid var(--neutral-200);
+  border-bottom: 1px solid var(--neutral-200);
+  padding: 6px 8px; background: white; vertical-align: top;
+  position: relative; transition: background .15s;
+}
+.cal-cell:hover { background: var(--navy-50); }
+.cal-cell.vazio { background: var(--neutral-50); }
+.cal-cell.fds { background: var(--neutral-50); }
+.cal-cell.tem-plano { border-left: 3px solid var(--amber-400); background: #fffbeb; }
+.cal-cell.tem-plano:hover { background: #fef3c7; }
+.cal-dia {
+  font-size: .8rem; font-weight: 800; color: var(--navy-700);
+  margin-bottom: 4px;
+}
+.cal-cell.vazio .cal-dia, .cal-cell.fds .cal-dia { color: var(--neutral-300); }
+.cal-plano {
+  font-size: .7rem; line-height: 1.4; color: var(--navy-800);
+  background: white; border: 1px solid var(--amber-200);
+  border-radius: 5px; padding: 3px 6px; margin-bottom: 3px;
+  cursor: pointer; transition: background .1s;
+}
+.cal-plano:hover { background: var(--amber-50); }
+.cal-plano-titulo { font-weight: 700; display: block; }
+.cal-plano-turma { color: var(--neutral-500); font-size: .65rem; }
+.cal-add {
+  font-size: .65rem; color: var(--neutral-300); margin-top: 2px;
+  cursor: pointer; display: none;
+}
+.cal-cell:hover .cal-add { display: block; color: var(--navy-400); }
+
+/* ── Modal ── */
+.modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9999; align-items:center; justify-content:center; }
+.modal-ov.open { display:flex; }
+.modal-box { background:white; border-radius:16px; width:min(520px,95vw); box-shadow:0 24px 80px rgba(0,0,0,.3); overflow:hidden; }
+.modal-head { padding:20px 24px; border-bottom:1px solid var(--neutral-200); display:flex; align-items:center; justify-content:space-between; }
+.modal-head h3 { font-weight:800; font-size:1rem; color:var(--navy-900); }
+.modal-body { padding:24px; }
+.modal-foot { padding:16px 24px; border-top:1px solid var(--neutral-200); display:flex; gap:10px; justify-content:flex-end; }
+
+/* ── Print ── */
+@media print {
+  .sidebar, .top-bar, .topbar-actions, .cal-add { display: none !important; }
+  .main-wrapper { margin-left: 0 !important; }
+  .content { padding: 0 !important; }
+  .cal-grid { page-break-inside: avoid; }
+  .cal-wrapper { gap: 20px; }
+  body { font-size: 11px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+  <div style="font-size:.875rem;color:var(--neutral-600);">
+    <strong style="color:var(--navy-900);">{{ label }}</strong>
+    {% if turma_nome != 'Todas as turmas' %} · {{ turma_nome }}{% endif %}
+    · {{ planos|length }} plano(s)
+  </div>
+</div>
+
+<div class="cal-wrapper">
+{% for (ano_c, mes_c) in meses %}
+  {% set nome_mes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes_c] %}
+  <div>
+    <div class="cal-month-title">{{ nome_mes }} {{ ano_c }}</div>
+    <div class="cal-grid">
+      {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+      <div class="cal-dow">{{ d }}</div>
+      {% endfor %}
+
+      {% set semanas = meses_semanas[(ano_c, mes_c)] %}
+      {% for semana in semanas %}
+        {% for dia in semana %}
+          {% if dia == 0 %}
+          <div class="cal-cell vazio"></div>
+          {% else %}
+            {% set d = '%04d-%02d-%02d'|format(ano_c, mes_c, dia) %}
+            {% set ps = planos_por_data.get(d, []) %}
+            {% set fds = loop.index0 >= 5 %}
+            <div class="cal-cell {% if fds %}fds{% endif %} {% if ps %}tem-plano{% endif %}">
+              <div class="cal-dia">{{ dia }}</div>
+              {% for p in ps %}
+              <div class="cal-plano" onclick="abrirEditar({{ p.id }})" title="{{ p.titulo }}">
+                <span class="cal-plano-titulo">{{ p.titulo[:40] }}{% if p.titulo|length > 40 %}…{% endif %}</span>
+                {% if p.turma %}<span class="cal-plano-turma">{{ p.turma.nome }}</span>{% endif %}
+              </div>
+              {% endfor %}
+              <div class="cal-add" onclick="abrirNovo('{{ d }}')">+ plano</div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<!-- Modal editar/ver plano -->
+<div class="modal-ov" id="modalPlano">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modalTitulo">Plano de Aula</h3>
+      <button onclick="fecharModal()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="modal-body" id="modalConteudo" style="max-height:60vh;overflow-y:auto;">
+      <div style="text-align:center;padding:20px;color:var(--neutral-400);">Carregando...</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="fecharModal()" class="btn btn-outline">Fechar</button>
+      <a id="modalLinkEditar" href="#" class="btn btn-primary">✏ Editar</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const planos = {{ planos_json|tojson }};
+
+function abrirEditar(id) {
+  const p = planos.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('modalTitulo').textContent = p.titulo;
+  document.getElementById('modalLinkEditar').href = `/planejamento/editar/${id}`;
+  document.getElementById('modalConteudo').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Data</span>
+        <div style="font-weight:600;margin-top:2px;">${p.data_aula}</div></div>
+      ${p.turma ? `<div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Turma</span>
+        <div style="font-weight:600;margin-top:2px;">${p.turma}</div></div>` : ''}
+      ${p.bimestre ? `<div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Bimestre</span>
+        <div style="font-weight:600;margin-top:2px;">${p.bimestre}º Bimestre</div></div>` : ''}
+      ${p.conteudo ? `<div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Conteúdo</span>
+        <div style="margin-top:2px;font-size:.875rem;white-space:pre-wrap;">${p.conteudo}</div></div>` : ''}
+      ${p.objetivos ? `<div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Objetivos</span>
+        <div style="margin-top:2px;font-size:.875rem;white-space:pre-wrap;">${p.objetivos}</div></div>` : ''}
+      ${p.metodologia ? `<div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Metodologia</span>
+        <div style="margin-top:2px;font-size:.875rem;white-space:pre-wrap;">${p.metodologia}</div></div>` : ''}
+      ${p.recursos ? `<div><span style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Recursos</span>
+        <div style="margin-top:2px;font-size:.875rem;white-space:pre-wrap;">${p.recursos}</div></div>` : ''}
+    </div>`;
+  document.getElementById('modalPlano').classList.add('open');
+}
+
+function abrirNovo(data) {
+  window.location.href = `/planejamento/novo?data_aula=${data}`;
+}
+
+function fecharModal() {
+  document.getElementById('modalPlano').classList.remove('open');
+}
+
+document.getElementById('modalPlano').addEventListener('click', function(e) {
+  if (e.target === this) fecharModal();
+});
+</script>
+{% endblock %}
