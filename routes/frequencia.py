@@ -670,3 +670,28 @@ def relatorio_preview():
         tipo=tipo, turma_id=turma_id,
         request_args=request.args.to_dict(),
     )
+
+
+# ── Excluir registros de um dia ───────────────────────────────────────────────
+
+@freq_bp.route("/api/excluir-dia", methods=["POST"])
+@login_required
+def api_excluir_dia():
+    """Remove todos os registros de frequência de um dia/turma."""
+    dados    = request.get_json()
+    data_str = dados.get("data", "")
+    turma_id = dados.get("turma_id")
+    try:
+        data_obj = datetime.strptime(data_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "erro": "Data inválida"}), 400
+
+    q = Frequencia.query.filter(
+        Frequencia.professor_id == current_user.id,
+        Frequencia.data == data_obj,
+    )
+    if turma_id:
+        q = q.filter(Frequencia.turma_id == turma_id)
+    q.delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({"ok": True})
