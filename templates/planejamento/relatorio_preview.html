@@ -1,121 +1,133 @@
 {% extends "base.html" %}
-{% block title %}Relatório de Frequência — {{ label }}{% endblock %}
-{% block page_title %}Relatório de Frequência{% endblock %}
+{% block title %}Relatório de Planejamento — {{ label }}{% endblock %}
+{% block page_title %}Relatório de Planejamento{% endblock %}
 {% block topbar_actions %}
+  {% if formato == 'calendario' %}
+  <a href="?{{ request_qs }}&formato=lista" class="btn btn-outline btn-sm">📋 Ver como Lista</a>
+  {% else %}
+  <a href="?{{ request_qs }}&formato=calendario" class="btn btn-outline btn-sm">📅 Ver como Calendário</a>
+  {% endif %}
   <button onclick="window.print()" class="btn btn-primary btn-sm">🖨️ Imprimir</button>
-  <a href="{{ url_for('frequencia.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
+  <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
 {% endblock %}
 {% block extra_css %}
 <style>
-.freq-bar-wrap{width:100px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
-.freq-bar-fill{height:100%;border-radius:999px;}
-.freq-pct{font-size:.85rem;font-weight:700;margin-left:6px;vertical-align:middle;}
-.aluno-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:16px;overflow:hidden;}
-.aluno-head{padding:12px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
-.stat-pill{background:white;border:1px solid var(--neutral-200);border-radius:8px;padding:3px 10px;font-size:.8rem;font-weight:600;}
+/* Lista */
+.plano-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:14px;overflow:hidden;}
+.plano-head{padding:12px 20px;background:var(--amber-50);border-bottom:1px solid var(--amber-100);display:flex;align-items:center;gap:12px;}
+.plano-titulo{font-weight:800;font-size:.9375rem;color:var(--navy-900);flex:1;}
+.plano-meta{font-size:.8rem;color:var(--neutral-500);margin-top:2px;}
+.plano-body{padding:14px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.plano-campo-label{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--neutral-400);letter-spacing:.04em;margin-bottom:3px;}
+.plano-campo-val{font-size:.8125rem;color:var(--navy-900);white-space:pre-wrap;line-height:1.5;}
+
+/* Calendário */
+.cal-print-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:10px;overflow:hidden;background:var(--neutral-200);gap:1px;margin-bottom:28px;}
+.cal-print-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:7px 4px;text-transform:uppercase;}
+.cal-print-cell{min-height:90px;background:white;padding:6px 8px;}
+.cal-print-cell.vazio{background:var(--neutral-50);}
+.cal-print-cell.fds{background:#f8f9fa;}
+.cal-print-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:4px;}
+.cal-print-cell.vazio .cal-print-dia,.cal-print-cell.fds .cal-print-dia{color:var(--neutral-300);}
+.cal-print-ev{font-size:.68rem;line-height:1.35;color:var(--navy-800);background:var(--amber-50);border-left:3px solid var(--amber-400);border-radius:0 4px 4px 0;padding:2px 5px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-mes-titulo{font-size:1rem;font-weight:800;color:var(--navy-900);text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px;}
+
+/* Cabeçalho relatório */
+.rel-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px 20px;background:white;border-radius:12px;border:1px solid var(--neutral-200);}
+
 @media print {
   .sidebar,.top-bar,.topbar-actions{display:none!important;}
   .main-wrapper{margin-left:0!important;}
-  .content{padding:16px!important;}
-  .aluno-card{break-inside:avoid;page-break-inside:avoid;}
-  body{font-size:11px;}
+  .content{padding:12px!important;}
+  .plano-card,.cal-print-grid{break-inside:avoid;page-break-inside:avoid;}
+  .cal-print-grid{margin-bottom:20px;}
+  body{font-size:10px;}
 }
 </style>
 {% endblock %}
-{% block content %}
 
-<!-- Cabeçalho do relatório -->
-<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px 20px;background:white;border-radius:12px;border:1px solid var(--neutral-200);">
+{% block content %}
+<!-- Cabeçalho -->
+<div class="rel-header">
   <img src="{{ url_for('static', filename='logo_df.png') }}" style="height:52px;width:auto;flex-shrink:0;" alt="DF"/>
   <div style="flex:1;">
     <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">{{ escola }}</div>
     <div style="font-size:.8rem;color:var(--neutral-500);">Prof(a): {{ prof_nome }}</div>
   </div>
   <div style="text-align:right;">
-    <div style="font-size:.75rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Relatório de Frequência</div>
+    <div style="font-size:.75rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Planejamento de Aulas</div>
     <div style="font-size:.9rem;font-weight:700;color:var(--navy-900);">{{ label }}</div>
-    <div style="font-size:.8rem;color:var(--neutral-500);">{{ turma_nome }}</div>
+    <div style="font-size:.8rem;color:var(--neutral-500);">{{ turma_nome }} · {{ planos|length }} plano(s)</div>
   </div>
 </div>
 
-<!-- Resumo consolidado -->
-<div class="card" style="margin-bottom:20px;">
-  <div class="card-header"><span class="card-title">Resumo Geral</span></div>
-  <div class="table-wrapper">
-    <table class="table">
-      <thead><tr><th>#</th><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:180px;">% Frequência</th></tr></thead>
-      <tbody>
-        {% for aluno in alunos %}
-        {% set st = stats[aluno.id] %}
-        {% set total=st[0] %}
-{% set presentes=st[1] %}
-{% set faltas=st[2] %}
-{% set pct=st[3] %}
-        <tr>
-          <td class="text-muted text-sm">{{ loop.index }}</td>
-          <td class="fw-700">{{ aluno.nome }}</td>
-          <td>{{ total or '—' }}</td>
-          <td>{{ presentes if total else '—' }}</td>
-          <td>{% if total %}{% if faltas>0 %}<span class="badge badge-red">{{ faltas }}</span>{% else %}<span class="badge badge-green">0</span>{% endif %}{% else %}—{% endif %}</td>
-          <td>
-            {% if pct is not none %}
-              {% if pct>=75 %}{% set bc='var(--sage-500)' %}{% set pc='var(--sage-600)' %}
-              {% elif pct>=50 %}{% set bc='var(--amber-500)' %}{% set pc='#92400e' %}
-              {% else %}{% set bc='var(--rose-500)' %}{% set pc='var(--rose-500)' %}{% endif %}
-              <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:{{ bc }};"></div></div>
-              <span class="freq-pct" style="color:{{ pc }};">{{ pct }}%</span>
-              {% if pct<75 %}<span class="badge badge-{% if pct<50 %}red{% else %}amber{% endif %}" style="margin-left:4px;font-size:.6rem;">{% if pct<50 %}⚠ Crítico{% else %}Atenção{% endif %}</span>{% endif %}
-            {% else %}<span class="text-muted text-sm">—</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+{% if not planos %}
+<div class="card"><div class="empty-state" style="padding:48px;">Nenhum plano no período selecionado.</div></div>
 
-<!-- Detalhe por aluno -->
-<h3 style="font-size:1rem;font-weight:700;color:var(--navy-900);margin-bottom:12px;">Detalhamento por Aluno</h3>
-{% for aluno in alunos %}
-{% set st=stats[aluno.id] %}
-{% set total=st[0] %}
-{% set presentes=st[1] %}
-{% set faltas=st[2] %}
-{% set pct=st[3] %}
-{% set regs=detalhes[aluno.id] %}
-<div class="aluno-card">
-  <div class="aluno-head">
-    <div style="font-weight:700;font-size:.9375rem;color:var(--navy-900);">{{ aluno.nome }}</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }}</span>
-      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }}</span>
-      {% if pct is not none %}
-        {% if pct>=75 %}{% set pc='var(--sage-600)' %}{% elif pct>=50 %}{% set pc='#92400e' %}{% else %}{% set pc='var(--rose-500)' %}{% endif %}
-        <span class="stat-pill" style="color:{{ pc }};">{{ pct }}%</span>
-      {% endif %}
+{% elif formato == 'calendario' %}
+<!-- ── VISÃO CALENDÁRIO ──────────────────────────────────────────────────── -->
+{% for mes_c, ano_c in meses %}
+  {% set nome_mes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes_c] %}
+  <div class="cal-mes-titulo">{{ nome_mes }} {{ ano_c }}</div>
+  <div class="cal-print-grid">
+    {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+    <div class="cal-print-dow">{{ d }}</div>
+    {% endfor %}
+
+    {% set semanas = meses_semanas[(mes_c, ano_c)] %}
+    {% for semana in semanas %}
+      {% for dia in semana %}
+        {% if dia == 0 %}
+        <div class="cal-print-cell vazio"></div>
+        {% else %}
+          {% set dow = loop.index0 %}
+          {% set dstr = '%04d-%02d-%02d'|format(ano_c, mes_c, dia) %}
+          {% set ps = planos_por_data.get(dstr, []) %}
+          <div class="cal-print-cell {% if dow >= 5 %}fds{% endif %}">
+            <div class="cal-print-dia">{{ dia }}</div>
+            {% for p in ps %}
+            <div class="cal-print-ev" title="{{ p.titulo }}">{{ p.titulo[:38] }}{% if p.titulo|length > 38 %}…{% endif %}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+{% endfor %}
+
+{% else %}
+<!-- ── VISÃO LISTA ───────────────────────────────────────────────────────── -->
+{% for p in planos %}
+<div class="plano-card">
+  <div class="plano-head">
+    <div style="flex:1;">
+      <div class="plano-titulo">{{ p.titulo }}</div>
+      <div class="plano-meta">
+        📅 {{ p.data_aula.strftime('%d/%m/%Y') }}
+        {% if p.turma %} · {{ p.turma.nome }}{% endif %}
+        {% if p.bimestre %} · {{ p.bimestre }}º Bimestre{% endif %}
+      </div>
     </div>
   </div>
-  {% if regs %}
-  <div class="table-wrapper">
-    <table class="table">
-      <thead><tr><th>Data</th><th>Status</th><th>Observação</th></tr></thead>
-      <tbody>
-        {% for f in regs %}
-        <tr>
-          <td>{{ f.data.strftime('%d/%m/%Y') }}</td>
-          <td>{% if f.status=='presente' %}<span class="badge badge-green">Presente</span>
-              {% elif f.status=='ausente' %}<span class="badge badge-red">Ausente</span>
-              {% elif f.status=='atestado' %}<span class="badge badge-amber">Atestado</span>
-              {% else %}<span class="badge badge-blue">Afastamento</span>{% endif %}</td>
-          <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {% if p.conteudo or p.objetivos or p.metodologia or p.recursos or p.avaliacao_descricao %}
+  <div class="plano-body">
+    {% for campo, valor, full in [
+      ('Conteúdo', p.conteudo, true),
+      ('Objetivos', p.objetivos, true),
+      ('Metodologia', p.metodologia, false),
+      ('Recursos', p.recursos, false),
+      ('Avaliação', p.avaliacao_descricao, false)
+    ] %}
+    {% if valor %}
+    <div {% if full %}style="grid-column:span 2"{% endif %}>
+      <div class="plano-campo-label">{{ campo }}</div>
+      <div class="plano-campo-val">{{ valor }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
   </div>
-  {% else %}
-  <div class="empty-state" style="padding:16px;">Nenhum registro no período.</div>
   {% endif %}
 </div>
 {% endfor %}
+{% endif %}
 {% endblock %}
