@@ -110,9 +110,15 @@
         {% for aluno in turma.alunos|sort(attribute='nome') %}
         {% set st = turma_stats.get(aluno.id) %}
         {% if st %}
-          {% set total=st[0]; presentes=st[1]; faltas=st[2]; pct=st[3] %}
+          {% set total=st[0] %}
+{% set presentes=st[1] %}
+{% set faltas=st[2] %}
+{% set pct=st[3] %}
         {% else %}
-          {% set total=0; presentes=0; faltas=0; pct=none %}
+          {% set total=0 %}
+{% set presentes=0 %}
+{% set faltas=0 %}
+{% set pct=none %}
         {% endif %}
         <tr>
           <td class="text-muted text-sm">{{ loop.index }}</td>
