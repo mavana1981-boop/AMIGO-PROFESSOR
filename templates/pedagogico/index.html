@@ -1,46 +1,205 @@
 {% extends "base.html" %}
 {% block title %}Acompanhamento Pedagógico{% endblock %}
 {% block page_title %}Pedagógico{% endblock %}
-{% block topbar_actions %}<a href="{{ url_for('pedagogico.novo') }}" class="btn btn-accent btn-sm">+ Novo Registro</a>{% endblock %}
+{% block topbar_actions %}
+  <select id="selTurma" class="form-control" style="width:auto;font-size:.8rem;" onchange="trocarTurma()">
+    <option value="">Todas as turmas</option>
+    {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+  </select>
+  <button onclick="abrirRelatorio()" class="btn btn-outline btn-sm">📊 Relatório</button>
+  <a href="{{ url_for('pedagogico.novo') }}" class="btn btn-accent btn-sm">+ Novo Registro</a>
+{% endblock %}
+{% block extra_css %}
+<style>
+.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.cal-nav-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cal-nav-btn:hover{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.cal-nav-title{font-size:1.1rem;font-weight:800;color:var(--navy-900);min-width:180px;text-align:center;}
+.cal-hoje-btn{padding:5px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:.8rem;font-weight:600;cursor:pointer;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:12px;overflow:hidden;background:var(--neutral-200);gap:1px;}
+.cal-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:8px 4px;text-transform:uppercase;}
+.cal-cell{min-height:110px;background:white;padding:7px 8px;transition:background .1s;}
+.cal-cell.vazio{background:var(--neutral-50);}
+.cal-cell.fds{background:#f8f9fa;}
+.cal-cell.hoje-cell{background:var(--navy-50);}
+.cal-cell.hoje-cell .cal-dia{background:var(--navy-700);color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-cell.vazio .cal-dia,.cal-cell.fds .cal-dia{color:var(--neutral-300);}
+.cal-event{font-size:.7rem;line-height:1.35;border-radius:5px;padding:3px 7px;margin-bottom:3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:white;}
+.cal-event.aprendizado{background:var(--sage-500);}
+.cal-event.carencia{background:var(--amber-500);}
+.cal-event.encaminhamento{background:#dc2626;}
+.cal-event.observacao{background:var(--navy-600);}
+.cal-add{font-size:.65rem;color:var(--neutral-300);margin-top:4px;display:none;cursor:pointer;}
+.cal-cell:hover .cal-add{display:block;color:var(--navy-400);}
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;}
+.mov.open{display:flex;}
+.mbox{background:white;border-radius:16px;width:min(540px,95vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);}
+.mhead{padding:18px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1;}
+.mbody{padding:20px 24px;}
+.mfoot{padding:14px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:white;}
+.rel-chip{padding:6px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);transition:all .15s;}
+.rel-chip.active{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.meses-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.mes-chip{padding:7px 4px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;background:white;text-align:center;transition:all .15s;}
+.mes-chip.sel{background:var(--amber-500);color:white;border-color:var(--amber-500);}
+</style>
+{% endblock %}
 {% block content %}
-<div class="page-header">
-  <div class="page-header-left"><h2>Acompanhamento Pedagógico</h2><p>Registros individuais de aprendizagem, carências e encaminhamentos</p></div>
-  <div class="d-flex gap-2" style="flex-wrap:wrap;">
-    {% for t,l in [('','Todos'),('aprendizado','Aprendizado'),('carencia','Carência'),('encaminhamento','Encaminhamento')] %}
-    <a href="?tipo={{ t }}{% if turma_id %}&turma_id={{ turma_id }}{% endif %}" class="filter-chip {% if tipo==t %}active{% endif %}">{{ l }}</a>
-    {% endfor %}
-    {% if turmas %}
-    <select onchange="location='?tipo={{ tipo or '' }}&turma_id='+this.value" class="form-control" style="width:auto;padding:5px 10px;font-size:.8rem;">
-      <option value="">Todas as turmas</option>
-      {% for t in turmas %}<option value="{{ t.id }}" {% if turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-    </select>
-    {% endif %}
+<div class="cal-nav">
+  <button class="cal-nav-btn" onclick="mudarMes(-1)">‹</button>
+  <div class="cal-nav-title" id="navTitle"></div>
+  <button class="cal-nav-btn" onclick="mudarMes(1)">›</button>
+  <button class="cal-hoje-btn" onclick="irHoje()">Hoje</button>
+</div>
+<div class="cal-grid" id="calGrid">
+  {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}<div class="cal-dow">{{ d }}</div>{% endfor %}
+</div>
+
+<!-- Modal detalhe -->
+<div class="mov" id="modalReg">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 id="regTitulo" style="font-weight:800;font-size:1rem;color:var(--navy-900);"></h3>
+      <button onclick="fecharModal('modalReg')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="mbody" id="regBody"></div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalReg')" class="btn btn-outline btn-sm">Fechar</button>
+      <a id="regEditar" href="#" class="btn btn-primary btn-sm">✏ Editar</a>
+    </div>
   </div>
 </div>
-<div class="card"><div class="table-wrapper"><table class="table">
-  <thead><tr><th>Aluno</th><th>Turma</th><th>Data</th><th>Tipo</th><th>Descrição</th><th>Encaminhamento</th><th>Status</th><th>Ações</th></tr></thead>
-  <tbody>
-    {% for r in registros %}
-    <tr>
-      <td class="fw-700">{{ r.aluno.nome }}</td>
-      <td class="text-sm text-muted">{{ r.aluno.turma.nome }}</td>
-      <td>{{ r.data.strftime('%d/%m/%Y') }}</td>
-      <td>
-        {% if r.tipo=='aprendizado' %}<span class="badge badge-green">Aprendizado</span>
-        {% elif r.tipo=='carencia' %}<span class="badge badge-amber">Carência</span>
-        {% elif r.tipo=='encaminhamento' %}<span class="badge badge-blue">Encaminhamento</span>
-        {% else %}<span class="badge badge-navy">{{ r.tipo or '—' }}</span>{% endif %}
-      </td>
-      <td class="text-sm" style="max-width:220px;">{{ r.descricao[:100] }}{% if r.descricao|length > 100 %}…{% endif %}</td>
-      <td class="text-sm">{{ r.encaminhamento or '—' }}</td>
-      <td>
-        {% if r.status=='aberto' %}<span class="badge badge-red">Aberto</span>
-        {% elif r.status=='em andamento' %}<span class="badge badge-amber">Em andamento</span>
-        {% else %}<span class="badge badge-green">Concluído</span>{% endif %}
-      </td>
-      <td><a href="{{ url_for('pedagogico.editar', id=r.id) }}" class="btn btn-outline btn-sm">Editar</a></td>
-    </tr>
-    {% else %}<tr><td colspan="8" class="empty-state">Nenhum registro encontrado.</td></tr>{% endfor %}
-  </tbody>
-</table></div></div>
+
+<!-- Modal relatório -->
+<div class="mov" id="modalRel">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📊 Relatório Pedagógico</h3>
+      <button onclick="fecharModal('modalRel')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;margin-bottom:6px;">Período</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <div class="rel-chip active" id="rTipoMes" onclick="selTipo('mes')">Por meses</div>
+          <div class="rel-chip" id="rTipoAno" onclick="selTipo('ano')">Ano letivo</div>
+          <div class="rel-chip" id="rTipoCustom" onclick="selTipo('custom')">Personalizado</div>
+        </div>
+      </div>
+      <div id="grpMeses">
+        <select id="rAnoMes" class="form-control" style="width:auto;font-size:.8rem;margin-bottom:8px;">
+          {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==hoje.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <div class="meses-grid">
+          {% for i,m in [(1,'Jan'),(2,'Fev'),(3,'Mar'),(4,'Abr'),(5,'Mai'),(6,'Jun'),(7,'Jul'),(8,'Ago'),(9,'Set'),(10,'Out'),(11,'Nov'),(12,'Dez')] %}
+          <div class="mes-chip {% if i==hoje.month %}sel{% endif %}" data-mes="{{ i }}" onclick="this.classList.toggle('sel')">{{ m }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="grpAno" style="display:none;">
+        <select id="rAnoAno" class="form-control" style="width:auto;">
+          {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==hoje.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="grpCustom" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);margin-bottom:4px;">DE</div>
+            <input type="date" id="rDataIni" class="form-control" value="{{ hoje.replace(day=1).isoformat() }}"/></div>
+          <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);margin-bottom:4px;">ATÉ</div>
+            <input type="date" id="rDataFim" class="form-control" value="{{ hoje.isoformat() }}"/></div>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalRel')" class="btn btn-outline btn-sm">Cancelar</button>
+      <button onclick="gerarRel()" class="btn btn-primary btn-sm">Ver Relatório →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const HOJE={ano:{{ hoje.year }},mes:{{ hoje.month }},dia:{{ hoje.day }}};
+const MESES=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let anoAtual=HOJE.ano,mesAtual=HOJE.mes,regs=[];
+
+async function carregar(ano,mes){
+  const tid=document.getElementById('selTurma').value;
+  const r=await fetch(`/pedagogico/api/mes?ano=${ano}&mes=${mes}${tid?'&turma_id='+tid:''}`);
+  regs=await r.json(); renderizar(ano,mes);
+}
+function renderizar(ano,mes){
+  document.getElementById('navTitle').textContent=`${MESES[mes]} ${ano}`;
+  const grid=document.getElementById('calGrid');
+  while(grid.children.length>7) grid.removeChild(grid.lastChild);
+  const dim=new Date(ano,mes,0).getDate();
+  let ini=new Date(ano,mes-1,1).getDay(); ini=(ini+6)%7;
+  for(let i=0;i<ini;i++) grid.insertAdjacentHTML('beforeend','<div class="cal-cell vazio"></div>');
+  const map={};
+  regs.forEach(r=>{const d=r.data;if(!map[d])map[d]=[];map[d].push(r);});
+  for(let dia=1;dia<=dim;dia++){
+    const dow=(ini+dia-1)%7,fds=dow>=5,isHoje=ano===HOJE.ano&&mes===HOJE.mes&&dia===HOJE.dia;
+    const dStr=`${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const ps=map[dStr]||[];
+    let cls='cal-cell'+(fds?' fds':'')+(isHoje?' hoje-cell':'');
+    let inner=`<div class="cal-dia">${dia}</div>`;
+    ps.forEach(r=>{
+      const label=r.aluno||r.tipo;
+      inner+=`<div class="cal-event ${r.tipo}" onclick="abrirReg(${r.id})" title="${label}">${label}</div>`;
+    });
+    inner+=`<div class="cal-add" onclick="window.location.href='/pedagogico/novo?data=${dStr}'">+ registro</div>`;
+    grid.insertAdjacentHTML('beforeend',`<div class="${cls}">${inner}</div>`);
+  }
+  const rest=(7-(ini+dim)%7)%7;
+  for(let i=0;i<rest;i++) grid.insertAdjacentHTML('beforeend','<div class="cal-cell vazio"></div>');
+}
+function mudarMes(d){mesAtual+=d;if(mesAtual>12){mesAtual=1;anoAtual++;}if(mesAtual<1){mesAtual=12;anoAtual--;}carregar(anoAtual,mesAtual);}
+function irHoje(){anoAtual=HOJE.ano;mesAtual=HOJE.mes;carregar(anoAtual,mesAtual);}
+function trocarTurma(){carregar(anoAtual,mesAtual);}
+function abrirReg(id){
+  const r=regs.find(x=>x.id===id); if(!r) return;
+  document.getElementById('regTitulo').textContent=r.aluno||r.tipo;
+  document.getElementById('regEditar').href=`/pedagogico/editar/${id}`;
+  document.getElementById('regBody').innerHTML=`
+    <div style="display:grid;gap:10px;">
+      <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Data</div><div style="margin-top:2px;">${r.data_fmt}</div></div>
+      <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Tipo</div><div style="margin-top:2px;">${r.tipo}</div></div>
+      ${r.aluno?`<div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Aluno</div><div style="margin-top:2px;">${r.aluno}</div></div>`:''}
+      ${r.status?`<div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Status</div><div style="margin-top:2px;">${r.status}</div></div>`:''}
+      <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Descrição</div><div style="margin-top:4px;font-size:.875rem;white-space:pre-wrap;">${r.descricao}</div></div>
+      ${r.encaminhamento?`<div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Encaminhamento</div><div style="margin-top:2px;font-size:.875rem;">${r.encaminhamento}</div></div>`:''}
+    </div>`;
+  document.getElementById('modalReg').classList.add('open');
+}
+let tipoRel='mes';
+function abrirRelatorio(){document.getElementById('modalRel').classList.add('open');}
+function selTipo(t){
+  tipoRel=t;
+  const mapa={mes:'grpMeses',ano:'grpAno',custom:'grpCustom'};
+  ['mes','ano','custom'].forEach(x=>{
+    document.getElementById('rTipo'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('active',x===t);
+    const g=document.getElementById(mapa[x]); if(g) g.style.display=x===t?'block':'none';
+  });
+}
+function gerarRel(){
+  let params='';
+  if(tipoRel==='mes'){
+    const ano=document.getElementById('rAnoMes').value;
+    const meses=[...document.querySelectorAll('.mes-chip.sel')].map(e=>e.dataset.mes);
+    if(!meses.length){alert('Selecione pelo menos um mês.');return;}
+    params=`tipo=mes&ano=${ano}&meses=${meses.join(',')}`;
+  } else if(tipoRel==='ano'){
+    params=`tipo=ano&ano=${document.getElementById('rAnoAno').value}`;
+  } else {
+    params=`tipo=custom&data_ini=${document.getElementById('rDataIni').value}&data_fim=${document.getElementById('rDataFim').value}`;
+  }
+  const tid=document.getElementById('selTurma').value;
+  if(tid) params+=`&turma_id=${tid}`;
+  fecharModal('modalRel');
+  window.location.href=`/pedagogico/relatorio-preview?${params}`;
+}
+function fecharModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.mov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+carregar(anoAtual,mesAtual);
+</script>
 {% endblock %}
