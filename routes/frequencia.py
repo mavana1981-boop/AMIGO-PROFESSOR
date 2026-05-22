@@ -590,11 +590,18 @@ def api_registrar():
     ).delete(synchronize_session=False)
     db.session.flush()
 
-    # Inserir novos
-    for aluno_id_str, status in registros.items():
+    # Inserir novos — suporta {aluno_id: status} e {aluno_id: {status, observacao}}
+    for aluno_id_str, val in registros.items():
+        if isinstance(val, dict):
+            status = val.get("status", "presente")
+            obs    = val.get("observacao", "") or ""
+        else:
+            status = val
+            obs    = ""
         db.session.add(Frequencia(
             aluno_id=int(aluno_id_str), turma_id=turma_id,
-            professor_id=current_user.id, data=data_obj, status=status,
+            professor_id=current_user.id, data=data_obj,
+            status=status, observacao=obs or None,
         ))
     db.session.commit()
     return jsonify({"ok": True})
