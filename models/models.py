@@ -123,7 +123,7 @@ class PlanoAula(db.Model):
     recursos            = db.Column(db.Text)
     avaliacao_descricao = db.Column(db.Text)
     professor_id        = db.Column(db.Integer, db.ForeignKey("professores.id"), nullable=False)
-    turma_id            = db.Column(db.Integer, db.ForeignKey("turmas.id"), nullable=False)
+    turma_id            = db.Column(db.Integer, db.ForeignKey("turmas.id"), nullable=True)
     criado_em           = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -161,7 +161,7 @@ class AcompanhamentoPedagogico(db.Model):
     descricao      = db.Column(db.Text, nullable=False)
     encaminhamento = db.Column(db.String(200))
     status         = db.Column(db.String(30), default="aberto")
-    aluno_id       = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    aluno_id       = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=True)
     professor_id   = db.Column(db.Integer, db.ForeignKey("professores.id"), nullable=False)
     criado_em      = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -176,4 +176,14 @@ class EventoCalendario(db.Model):
     descricao    = db.Column(db.Text)
     cor          = db.Column(db.String(20), default="#3B82F6")
     professor_id = db.Column(db.Integer, db.ForeignKey("professores.id"), nullable=False)
+    criado_em    = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class FraseRAv(db.Model):
+    """Frases pré-definidas personalizadas por professor para uso no RAv."""
+    __tablename__ = "frases_rav"
+    id           = db.Column(db.Integer, primary_key=True)
+    professor_id = db.Column(db.Integer, db.ForeignKey("professores.id"), nullable=False)
+    area         = db.Column(db.String(50), nullable=False)  # comportamento, linguagem_leitura, etc.
+    texto        = db.Column(db.Text, nullable=False)
     criado_em    = db.Column(db.DateTime, default=datetime.utcnow)
