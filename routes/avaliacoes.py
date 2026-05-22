@@ -134,3 +134,12 @@ def relatorio_preview():
     return render_template("avaliacoes/relatorio_preview.html",
         avaliacoes=avaliacoes, label=label, turma_nome=t_nome,
         prof_nome=current_user.nome, escola=current_user.escola or "")
+
+
+@aval_bp.route("/excluir/<int:id>", methods=["POST"])
+@login_required
+def excluir(id):
+    av = Avaliacao.query.filter_by(id=id, professor_id=current_user.id).first_or_404()
+    db.session.delete(av)
+    db.session.commit()
+    return jsonify({"ok": True})
