@@ -244,7 +244,7 @@ Regras:
             return _json.loads(resp.read())
 
     # Tenta modelos em ordem de preferência
-    modelos = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
+    modelos = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"]
     partes_pdf = [
         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}},
         {"text": prompt},
