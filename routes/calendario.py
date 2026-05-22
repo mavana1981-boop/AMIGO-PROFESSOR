@@ -1,6 +1,7 @@
 from flask import (Blueprint, render_template, redirect, url_for, flash,
                    request, jsonify, session)
 from flask_login import login_required, current_user
+from routes.auth import is_admin
 from app import db
 from models.models import EventoCalendario
 from datetime import datetime, date
@@ -110,6 +111,9 @@ def _salvar_evento_form(form):
 @login_required
 def importar():
     """Tela de upload: professor envia o PDF do calendário escolar."""
+    if not is_admin():
+        flash("Acesso restrito ao administrador.", "danger")
+        return redirect(url_for("calendario.index"))
     if request.method == "POST":
         pdf_file = request.files.get("pdf_calendario")
         if not pdf_file or not pdf_file.filename.endswith(".pdf"):
@@ -139,6 +143,9 @@ def importar():
 @login_required
 def confirmar_importacao():
     """Exibe os eventos extraídos para o professor revisar e confirmar."""
+    if not is_admin():
+        flash("Acesso restrito ao administrador.", "danger")
+        return redirect(url_for("calendario.index"))
     eventos_raw = session.get("eventos_importar", [])
     ano         = session.get("ano_importar", str(date.today().year))
 
