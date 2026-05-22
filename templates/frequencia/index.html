@@ -1,170 +1,327 @@
 {% extends "base.html" %}
 {% block title %}Frequência{% endblock %}
 {% block page_title %}Frequência{% endblock %}
+{% block topbar_actions %}
+  <select id="selTurma" class="form-control" style="width:auto;font-size:.8rem;" onchange="trocarTurma(this.value)">
+    <option value="">Todas as turmas</option>
+    {% for t in turmas %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}
+  </select>
+  <button onclick="abrirRelatorio()" class="btn btn-outline btn-sm">📊 Relatórios</button>
+  <button onclick="abrirRegistrar()" class="btn btn-accent btn-sm">✅ Registrar</button>
+{% endblock %}
 {% block extra_css %}
 <style>
-.freq-bar-wrap{width:120px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
-.freq-bar-fill{height:100%;border-radius:999px;}
-.freq-pct{font-size:.85rem;font-weight:700;margin-left:6px;vertical-align:middle;}
-.filter-tab{padding:6px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);transition:all .15s;text-decoration:none;}
-.filter-tab.active,.filter-tab:hover{background:var(--navy-700);color:white;border-color:var(--navy-700);}
-.custom-date-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding:14px 16px;background:var(--navy-50);border-radius:10px;border:1px solid var(--neutral-200);}
+.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.cal-nav-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cal-nav-btn:hover{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.cal-nav-title{font-size:1.1rem;font-weight:800;color:var(--navy-900);min-width:180px;text-align:center;}
+.cal-hoje-btn{padding:5px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:.8rem;font-weight:600;cursor:pointer;color:var(--navy-700);}
+.cal-hoje-btn:hover{background:var(--navy-50);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:12px;overflow:hidden;background:var(--neutral-200);gap:1px;}
+.cal-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:8px 4px;text-transform:uppercase;letter-spacing:.05em;}
+.cal-cell{min-height:110px;background:white;padding:7px 8px;transition:background .1s;}
+.cal-cell:hover{background:var(--navy-50);cursor:pointer;}
+.cal-cell.vazio{background:var(--neutral-50);cursor:default;}
+.cal-cell.vazio:hover{background:var(--neutral-50);}
+.cal-cell.fds{background:#f8f9fa;}
+.cal-cell.hoje-cell{background:var(--navy-50);}
+.cal-cell.hoje-cell .cal-dia{background:var(--navy-700);color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-cell.vazio .cal-dia,.cal-cell.fds .cal-dia{color:var(--neutral-300);}
+.freq-badge{font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-bottom:2px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.freq-presente{background:#dcfce7;color:#166534;}
+.freq-ausente{background:#fee2e2;color:#991b1b;}
+.freq-atestado{background:#fef3c7;color:#92400e;}
+.freq-vazio{color:var(--neutral-300);font-size:.65rem;margin-top:4px;}
+.cal-add{font-size:.65rem;color:var(--neutral-300);margin-top:4px;display:none;}
+.cal-cell:hover .cal-add{display:block;color:var(--navy-400);}
+
+/* Modais */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;}
+.mov.open{display:flex;}
+.mbox{background:white;border-radius:16px;width:min(580px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);}
+.mhead{padding:18px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1;}
+.mbody{padding:20px 24px;}
+.mfoot{padding:14px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:white;}
+.detail-label{font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.rel-chip{padding:6px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);transition:all .15s;}
+.rel-chip.active{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.meses-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.mes-chip{padding:7px 4px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);text-align:center;transition:all .15s;}
+.mes-chip.sel{background:var(--amber-500);color:white;border-color:var(--amber-500);}
+.status-btn{padding:8px 16px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:700;cursor:pointer;transition:all .15s;background:white;}
+.status-btn.presente{border-color:#86efac;color:#166534;}
+.status-btn.presente.sel{background:#dcfce7;border-color:#22c55e;}
+.status-btn.ausente{border-color:#fca5a5;color:#991b1b;}
+.status-btn.ausente.sel{background:#fee2e2;border-color:#ef4444;}
+.status-btn.atestado{border-color:#fcd34d;color:#92400e;}
+.status-btn.atestado.sel{background:#fef3c7;border-color:#f59e0b;}
+.aluno-reg-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--neutral-100);}
+.aluno-reg-row:last-child{border-bottom:none;}
+.aluno-reg-nome{flex:1;font-size:.875rem;font-weight:600;}
+.aluno-reg-btns{display:flex;gap:6px;}
 </style>
 {% endblock %}
+
 {% block content %}
+<!-- Navegação mês -->
+<div class="cal-nav">
+  <button class="cal-nav-btn" onclick="mudarMes(-1)">‹</button>
+  <div class="cal-nav-title" id="navTitle"></div>
+  <button class="cal-nav-btn" onclick="mudarMes(1)">›</button>
+  <button class="cal-hoje-btn" onclick="irHoje()">Hoje</button>
+</div>
 
-<!-- Filtros -->
-<div class="card" style="margin-bottom:20px;">
-  <div class="card-body" style="padding:16px 20px;">
-    <form method="GET" id="filtroForm">
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
-        <div>
-          <label class="form-label" style="font-size:.75rem;margin-bottom:6px;">PERÍODO</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            {% for f, lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano'),('custom','Personalizado')] %}
-            <a href="?filtro={{ f }}&ano={{ ano }}&mes={{ mes }}&bimestre={{ bimestre }}&semestre={{ semestre }}&data_ini={{ data_ini }}&data_fim={{ data_fim }}"
-               class="filter-tab {% if filtro==f %}active{% endif %}">{{ lbl }}</a>
-            {% endfor %}
-          </div>
-        </div>
+<div class="cal-grid" id="calGrid">
+  {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+  <div class="cal-dow">{{ d }}</div>
+  {% endfor %}
+</div>
 
-        {% if filtro == 'mes' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">MÊS</label>
-          <select name="mes" class="form-control" onchange="this.form.submit()">
-            {% set meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-            {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
-          </select>
-          <input type="hidden" name="filtro" value="mes">
-        </div>
-        {% elif filtro == 'bimestre' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">BIMESTRE</label>
-          <select name="bimestre" class="form-control" onchange="this.form.submit()">
-            {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
-          </select>
-          <input type="hidden" name="filtro" value="bimestre">
-        </div>
-        {% elif filtro == 'semestre' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">SEMESTRE</label>
-          <select name="semestre" class="form-control" onchange="this.form.submit()">
-            <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
-            <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
-          </select>
-          <input type="hidden" name="filtro" value="semestre">
-        </div>
-        {% elif filtro == 'custom' %}
-        <div class="custom-date-row">
-          <div class="form-group" style="margin:0;">
-            <label class="form-label" style="font-size:.75rem;">DE</label>
-            <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}" />
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label class="form-label" style="font-size:.75rem;">ATÉ</label>
-            <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
-          <input type="hidden" name="filtro" value="custom">
-        </div>
-        {% else %}
-        <input type="hidden" name="filtro" value="ano">
-        {% endif %}
-
-        {% if filtro != 'custom' %}
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.75rem;">ANO</label>
-          <select name="ano" class="form-control" onchange="this.form.submit()">
-            {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
+<!-- Modal: registrar frequência do dia -->
+<div class="mov" id="modalReg">
+  <div class="mbox">
+    <div class="mhead">
+      <div>
+        <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">✅ Registrar Frequência</div>
+        <div id="regData" style="font-size:.8rem;color:var(--neutral-500);margin-top:2px;"></div>
       </div>
-    </form>
+      <button onclick="fecharModal('modalReg')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="regTurmaAviso" style="display:none;background:var(--amber-50);border:1px solid var(--amber-200);border-radius:8px;padding:10px 14px;font-size:.8125rem;color:#92400e;margin-bottom:12px;">
+        Selecione uma turma no topo para registrar frequência.
+      </div>
+      <div id="regAlunos"></div>
+    </div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalReg')" class="btn btn-outline btn-sm">Cancelar</button>
+      <button onclick="salvarFrequencia()" class="btn btn-primary btn-sm">Salvar Frequência</button>
+    </div>
   </div>
 </div>
 
-<!-- Turmas -->
-{% if turmas %}
-{% for turma in turmas %}
-<div class="card" style="margin-bottom:20px;">
-  <div style="padding:16px 20px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-    <div>
-      <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">{{ turma.nome }}</div>
-      <div style="font-size:.8rem;color:var(--neutral-500);">{{ turma.alunos|length }} aluno(s)</div>
+<!-- Modal: relatórios -->
+<div class="mov" id="modalRel">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">📊 Gerar Relatório</h3>
+      <button onclick="fecharModal('modalRel')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <a href="{{ url_for('frequencia.registrar', turma_id=turma.id) }}" class="btn btn-primary btn-sm">✅ Registrar</a>
-      <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, data_ini=data_ini, data_fim=data_fim) }}" class="btn btn-accent btn-sm">📊 Relatório</a>
+    <div class="mbody">
+      <div style="margin-bottom:16px;">
+        <div class="detail-label" style="margin-bottom:6px;">Tipo de período</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <div class="rel-chip active" id="rTipoMes"    onclick="selecionarTipo('mes')">Por meses</div>
+          <div class="rel-chip"       id="rTipoAno"    onclick="selecionarTipo('ano')">Ano letivo</div>
+          <div class="rel-chip"       id="rTipoCustom" onclick="selecionarTipo('custom')">Personalizado</div>
+        </div>
+      </div>
+      <div id="grpMeses">
+        <div class="detail-label" style="margin-bottom:6px;">Selecione os meses</div>
+        <select id="rAnoMes" class="form-control" style="width:auto;font-size:.8rem;margin-bottom:8px;">
+          {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==hoje.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <div class="meses-grid">
+          {% for i,m in [(1,'Jan'),(2,'Fev'),(3,'Mar'),(4,'Abr'),(5,'Mai'),(6,'Jun'),(7,'Jul'),(8,'Ago'),(9,'Set'),(10,'Out'),(11,'Nov'),(12,'Dez')] %}
+          <div class="mes-chip {% if i==hoje.month %}sel{% endif %}" data-mes="{{ i }}" onclick="toggleMes(this)">{{ m }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="grpAno" style="display:none;">
+        <div class="detail-label" style="margin-bottom:4px;">Ano letivo</div>
+        <select id="rAnoAno" class="form-control" style="width:auto;">
+          {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==hoje.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="grpCustom" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><div class="detail-label" style="margin-bottom:4px;">De</div>
+            <input type="date" id="rDataIni" class="form-control" value="{{ hoje.replace(day=1).isoformat() }}"/></div>
+          <div><div class="detail-label" style="margin-bottom:4px;">Até</div>
+            <input type="date" id="rDataFim" class="form-control" value="{{ hoje.isoformat() }}"/></div>
+        </div>
+      </div>
+      {% if turmas %}
+      <div style="margin-top:16px;">
+        <div class="detail-label" style="margin-bottom:4px;">Turma</div>
+        <select id="rTurmaRel" class="form-control" style="width:auto;">
+          <option value="">Todas as turmas</option>
+          {% for t in turmas %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalRel')" class="btn btn-outline btn-sm">Cancelar</button>
+      <button onclick="gerarRelatorio()" class="btn btn-primary btn-sm">Ver Relatório →</button>
     </div>
   </div>
+</div>
 
-  {% set turma_stats = stats_por_turma.get(turma.id, {}) %}
-  {% if turma.alunos %}
-  <div class="table-wrapper">
-    <table class="table">
-      <thead>
-        <tr><th>#</th><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:220px;">% Frequência</th></tr>
-      </thead>
-      <tbody>
-        {% for aluno in turma.alunos|sort(attribute='nome') %}
-        {% set st = turma_stats.get(aluno.id) %}
-        {% if st %}
-          {% set total=st[0] %}
-{% set presentes=st[1] %}
-{% set faltas=st[2] %}
-{% set pct=st[3] %}
-        {% else %}
-          {% set total=0 %}
-{% set presentes=0 %}
-{% set faltas=0 %}
-{% set pct=none %}
-        {% endif %}
-        <tr>
-          <td class="text-muted text-sm">{{ loop.index }}</td>
-          <td class="fw-700">{{ aluno.nome }}</td>
-          <td>{{ total if total > 0 else '—' }}</td>
-          <td>{{ presentes if total > 0 else '—' }}</td>
-          <td>
-            {% if total > 0 %}
-              {% if faltas > 0 %}<span class="badge badge-red">{{ faltas }}</span>
-              {% else %}<span class="badge badge-green">0</span>{% endif %}
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            {% if pct is not none %}
-              {% if pct >= 75 %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--sage-500);"></div></div>
-                <span class="freq-pct" style="color:var(--sage-600);">{{ pct }}%</span>
-              {% elif pct >= 50 %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--amber-500);"></div></div>
-                <span class="freq-pct" style="color:#92400e;">{{ pct }}%</span>
-                <span class="badge badge-amber" style="font-size:.6rem;margin-left:4px;">Atenção</span>
-              {% else %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--rose-500);"></div></div>
-                <span class="freq-pct" style="color:var(--rose-500);">{{ pct }}%</span>
-                <span class="badge badge-red" style="font-size:.6rem;margin-left:4px;">⚠ Crítico</span>
-              {% endif %}
-            {% else %}
-              <span class="text-muted text-sm">Sem registros</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="empty-state" style="padding:24px;">Nenhum aluno cadastrado nesta turma.</div>
-  {% endif %}
-</div>
-{% endfor %}
-{% else %}
-<div class="card">
-  <div class="empty-state" style="padding:48px;">
-    <p style="font-size:1.1rem;font-weight:700;">Nenhuma turma cadastrada</p>
-    <p>Cadastre turmas em <a href="{{ url_for('turmas.nova') }}">Turmas → Nova Turma</a></p>
-  </div>
-</div>
-{% endif %}
+<script>
+const HOJE   = {ano:{{ hoje.year }}, mes:{{ hoje.month }}, dia:{{ hoje.day }}};
+const MESES  = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const TURMAS = {{ turmas_json|tojson }};
+
+let anoAtual = HOJE.ano, mesAtual = HOJE.mes;
+let dadosMes  = {};  // { 'YYYY-MM-DD': [{aluno_id, aluno_nome, status}] }
+let diaReg    = null;
+
+// ── Carregar dados do mês ─────────────────────────────────────────────────────
+async function carregarMes(ano, mes) {
+  const tid = document.getElementById('selTurma').value;
+  const url = `/frequencia/api/mes?ano=${ano}&mes=${mes}${tid?'&turma_id='+tid:''}`;
+  const r   = await fetch(url);
+  dadosMes  = await r.json();
+  renderizar(ano, mes);
+}
+
+function renderizar(ano, mes) {
+  document.getElementById('navTitle').textContent = `${MESES[mes]} ${ano}`;
+  const grid = document.getElementById('calGrid');
+  while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  let inicio = new Date(ano, mes-1, 1).getDay();
+  inicio = (inicio + 6) % 7;
+
+  for (let i = 0; i < inicio; i++)
+    grid.insertAdjacentHTML('beforeend','<div class="cal-cell vazio"></div>');
+
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const dow    = (inicio + dia - 1) % 7;
+    const fds    = dow >= 5;
+    const isHoje = ano===HOJE.ano && mes===HOJE.mes && dia===HOJE.dia;
+    const dStr   = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const regs   = dadosMes[dStr] || [];
+
+    let cls = 'cal-cell' + (fds?' fds':'') + (isHoje?' hoje-cell':'');
+    let inner = `<div class="cal-dia">${dia}</div>`;
+
+    if (regs.length > 0) {
+      const pres = regs.filter(r=>r.status==='presente').length;
+      const aus  = regs.filter(r=>r.status==='ausente').length;
+      const ates = regs.filter(r=>r.status==='atestado').length;
+      if (pres) inner += `<span class="freq-badge freq-presente">✅ ${pres} presente${pres>1?'s':''}</span>`;
+      if (aus)  inner += `<span class="freq-badge freq-ausente">❌ ${aus} ausente${aus>1?'s':''}</span>`;
+      if (ates) inner += `<span class="freq-badge freq-atestado">📋 ${ates} atestado${ates>1?'s':''}</span>`;
+    } else if (!fds) {
+      inner += `<div class="freq-vazio">sem registro</div>`;
+    }
+    inner += `<div class="cal-add" onclick="abrirRegistrar('${dStr}')">+ registrar</div>`;
+
+    grid.insertAdjacentHTML('beforeend',
+      `<div class="${cls}" onclick="abrirRegistrar('${dStr}')">${inner}</div>`);
+  }
+
+  const total = inicio + diasNoMes;
+  const rest  = (7-(total%7))%7;
+  for (let i=0;i<rest;i++) grid.insertAdjacentHTML('beforeend','<div class="cal-cell vazio"></div>');
+}
+
+function mudarMes(d) {
+  mesAtual+=d;
+  if(mesAtual>12){mesAtual=1;anoAtual++;}
+  if(mesAtual<1){mesAtual=12;anoAtual--;}
+  carregarMes(anoAtual,mesAtual);
+}
+function irHoje(){anoAtual=HOJE.ano;mesAtual=HOJE.mes;carregarMes(anoAtual,mesAtual);}
+function trocarTurma(){carregarMes(anoAtual,mesAtual);}
+
+// ── Registrar frequência ──────────────────────────────────────────────────────
+let statusMap = {};
+function abrirRegistrar(data) {
+  const tid = document.getElementById('selTurma').value;
+  diaReg = data;
+  const [a,m,d] = data.split('-');
+  document.getElementById('regData').textContent =
+    `${d}/${m}/${a}`;
+  const aviso = document.getElementById('regTurmaAviso');
+  const corpo = document.getElementById('regAlunos');
+
+  if (!tid) {
+    aviso.style.display = 'block'; corpo.innerHTML = '';
+    document.getElementById('modalReg').classList.add('open'); return;
+  }
+  aviso.style.display = 'none';
+
+  // Buscar turma
+  const turma = TURMAS.find(t=>String(t.id)===String(tid));
+  if (!turma || !turma.alunos.length) {
+    corpo.innerHTML='<p style="color:var(--neutral-400);font-size:.875rem;">Nenhum aluno nesta turma.</p>';
+    document.getElementById('modalReg').classList.add('open'); return;
+  }
+
+  // Pré-preencher com registros existentes
+  const regs = dadosMes[data] || [];
+  statusMap  = {};
+  regs.forEach(r=>statusMap[r.aluno_id]=r.status);
+
+  corpo.innerHTML = turma.alunos.map(a=>{
+    const st = statusMap[a.id]||'presente';
+    statusMap[a.id] = st;
+    return `<div class="aluno-reg-row">
+      <div class="aluno-reg-nome">${a.nome}</div>
+      <div class="aluno-reg-btns">
+        <button class="status-btn presente ${st==='presente'?'sel':''}" onclick="setStatus(${a.id},'presente',this)">✅</button>
+        <button class="status-btn ausente ${st==='ausente'?'sel':''}"  onclick="setStatus(${a.id},'ausente',this)">❌</button>
+        <button class="status-btn atestado ${st==='atestado'?'sel':''}" onclick="setStatus(${a.id},'atestado',this)">📋</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('modalReg').classList.add('open');
+}
+function abrirRegistrar2(){ abrirRegistrar(
+  `${anoAtual}-${String(mesAtual).padStart(2,'0')}-${String(HOJE.dia).padStart(2,'0')}`
+);}
+function setStatus(alunoId, status, btn) {
+  statusMap[alunoId] = status;
+  btn.closest('.aluno-reg-btns').querySelectorAll('.status-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+async function salvarFrequencia() {
+  const tid = document.getElementById('selTurma').value;
+  if (!tid || !diaReg) return;
+  const payload = { data: diaReg, turma_id: parseInt(tid), registros: statusMap };
+  await fetch('/frequencia/api/registrar', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+  });
+  fecharModal('modalReg');
+  carregarMes(anoAtual, mesAtual);
+}
+
+// ── Relatório ─────────────────────────────────────────────────────────────────
+let tipoRel='mes';
+function abrirRelatorio(){document.getElementById('modalRel').classList.add('open');}
+function selecionarTipo(t){
+  tipoRel=t;
+  ['Mes','Ano','Custom'].forEach(x=>{
+    document.getElementById('rTipo'+x).classList.toggle('active',x.toLowerCase()===t);
+    const g=document.getElementById('grp'+x); if(g) g.style.display=x.toLowerCase()===t?'block':'none';
+  });
+}
+function toggleMes(el){el.classList.toggle('sel');}
+function gerarRelatorio(){
+  const turma=document.getElementById('rTurmaRel')?.value||'';
+  let params=`turma_id=${turma}`;
+  if(tipoRel==='mes'){
+    const ano=document.getElementById('rAnoMes').value;
+    const meses=[...document.querySelectorAll('.mes-chip.sel')].map(e=>e.dataset.mes);
+    if(!meses.length){alert('Selecione pelo menos um mês.');return;}
+    params+=`&tipo=mes&ano=${ano}&meses=${meses.join(',')}`;
+  } else if(tipoRel==='ano'){
+    params+=`&tipo=ano&ano=${document.getElementById('rAnoAno').value}`;
+  } else {
+    params+=`&tipo=custom&data_ini=${document.getElementById('rDataIni').value}&data_fim=${document.getElementById('rDataFim').value}`;
+  }
+  fecharModal('modalRel');
+  window.location.href=`/frequencia/relatorio-preview?${params}`;
+}
+
+function fecharModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.mov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+carregarMes(anoAtual, mesAtual);
+</script>
 {% endblock %}
