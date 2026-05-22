@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Relatório — {{ label }}{% endblock %}
+{% block page_title %}Relatório{% endblock %}
+{% block topbar_actions %}
+  <button onclick="window.print()" class="btn btn-primary btn-sm">🖨️ Imprimir</button>
+  <a href="{{ url_for('pedagogico.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
+{% endblock %}
+{% block extra_css %}
+<style>
+.rel-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:14px;overflow:hidden;break-inside:avoid;}
+.rel-head{padding:12px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.rel-titulo{font-weight:800;font-size:.9375rem;color:var(--navy-900);flex:1;}
+.rel-meta{font-size:.8rem;color:var(--neutral-500);margin-top:2px;}
+.rel-body{padding:14px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.campo-label{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--neutral-400);letter-spacing:.04em;margin-bottom:3px;}
+.campo-val{font-size:.8125rem;color:var(--navy-900);white-space:pre-wrap;line-height:1.5;}
+@media print{
+  .sidebar,.top-bar,.topbar-actions{display:none!important;}
+  .main-wrapper{margin-left:0!important;}
+  .content{padding:12px!important;}
+  body{font-size:10px;}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px 20px;background:white;border-radius:12px;border:1px solid var(--neutral-200);">
+  <img src="{{ url_for('static', filename='logo_df.png') }}" style="height:52px;width:auto;flex-shrink:0;" alt="DF"/>
+  <div style="flex:1;">
+    <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">{{ escola }}</div>
+    <div style="font-size:.8rem;color:var(--neutral-500);">Prof(a): {{ prof_nome }}</div>
+  </div>
+  <div style="text-align:right;">
+    <div style="font-size:.75rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">
+      {% if 'pedagogico' == 'avaliacoes' %}Avaliações{% else %}Acompanhamento Pedagógico{% endif %}
+    </div>
+    <div style="font-size:.9rem;font-weight:700;color:var(--navy-900);">{{ label }}</div>
+    <div style="font-size:.8rem;color:var(--neutral-500);">{{ turma_nome }}</div>
+  </div>
+</div>
+
+{% if 'pedagogico' == 'avaliacoes' %}
+  {% if not avaliacoes %}
+  <div class="card"><div class="empty-state" style="padding:48px;">Nenhuma avaliação no período.</div></div>
+  {% else %}
+  {% for a in avaliacoes %}
+  <div class="rel-card">
+    <div class="rel-head">
+      <div>
+        <div class="rel-titulo">{{ a.titulo }}</div>
+        <div class="rel-meta">📅 {{ a.data_aplicacao.strftime('%d/%m/%Y') if a.data_aplicacao else '—' }}{% if a.turma %} · {{ a.turma.nome }}{% endif %}{% if a.bimestre %} · {{ a.bimestre }}º Bim{% endif %}</div>
+      </div>
+      {% if a.tipo %}<span class="badge badge-navy">{{ a.tipo }}</span>{% endif %}
+    </div>
+    {% if a.descricao or a.valor_total %}
+    <div class="rel-body">
+      {% if a.valor_total %}<div><div class="campo-label">Valor Total</div><div class="campo-val">{{ a.valor_total }}</div></div>{% endif %}
+      {% if a.descricao %}<div style="grid-column:span 2"><div class="campo-label">Descrição</div><div class="campo-val">{{ a.descricao }}</div></div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+{% else %}
+  {% if not registros %}
+  <div class="card"><div class="empty-state" style="padding:48px;">Nenhum registro no período.</div></div>
+  {% else %}
+  {% for r in registros %}
+  <div class="rel-card">
+    <div class="rel-head">
+      <div>
+        <div class="rel-titulo">{{ r.aluno.nome if r.aluno else 'Turma' }}</div>
+        <div class="rel-meta">📅 {{ r.data.strftime('%d/%m/%Y') }} · {{ r.tipo }}</div>
+      </div>
+      {% if r.status %}<span class="badge badge-{% if r.status=='aberto' %}amber{% elif r.status=='concluido' %}green{% else %}blue{% endif %}">{{ r.status }}</span>{% endif %}
+    </div>
+    <div class="rel-body">
+      <div style="grid-column:span 2"><div class="campo-label">Descrição</div><div class="campo-val">{{ r.descricao }}</div></div>
+      {% if r.encaminhamento %}<div style="grid-column:span 2"><div class="campo-label">Encaminhamento</div><div class="campo-val">{{ r.encaminhamento }}</div></div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+{% endif %}
+{% endblock %}
