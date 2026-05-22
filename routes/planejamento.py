@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import login_required, current_user
+from routes.pdf_header import cabecalho_pdf
 from app import db
 from models.models import PlanoAula, Turma
 from datetime import date, datetime, timedelta
@@ -219,8 +220,9 @@ def gerar_pdf_planejamento(planos, periodo_label, turma_nome, prof_nome):
     T_label= ParagraphStyle("label", parent=SS["Normal"], fontSize=8, textColor=CINZA, fontName="Helvetica-Bold", spaceBefore=6, spaceAfter=1)
 
     story = []
+    cabecalho_pdf(story, prof_nome, "", "Relatório de Planejamento")
     story.append(Paragraph("Relatório de Planejamento de Aulas", T_h1))
-    story.append(Paragraph(f"Professor(a): {prof_nome}  ·  Turma: {turma_nome}  ·  Período: {periodo_label}  ·  Gerado em {date.today().strftime('%d/%m/%Y')}", T_sub))
+    story.append(Paragraph(f"Turma: {turma_nome}  ·  Período: {periodo_label}", T_sub))
     story.append(HRFlowable(width="100%", thickness=2, color=NAVY))
     story.append(Spacer(1, 8))
 
@@ -436,8 +438,9 @@ def gerar_pdf_planejamento_calendario(planos, label, turma_nome, prof_nome,
                             topMargin=1*cm, bottomMargin=1*cm)
     story = []
 
+    cabecalho_pdf(story, prof_nome, "", "Calendário de Planejamento")
     story.append(Paragraph("Planejamento de Aulas — Calendário", T_titulo))
-    story.append(Paragraph(f"Professor(a): {prof_nome}  ·  Turma: {turma_nome}  ·  Período: {label}", T_sub))
+    story.append(Paragraph(f"Turma: {turma_nome}  ·  Período: {label}", T_sub))
     story.append(HRFlowable(width="100%", thickness=1.5, color=NAVY))
     story.append(Spacer(1, 8))
 
@@ -598,10 +601,9 @@ def _pdf_calendario_planos(planos, periodo_label, turma_nome, prof_nome, filtro,
     CELL_H = 2.0*cm   # maior que frequência p/ caber título do plano
 
     story = []
-    story.append(Paragraph(f"Calendário de Planejamento — {prof_nome}", T_h1))
-    story.append(Paragraph(f"Turma: {turma_nome}  ·  Período: {periodo_label}  ·  {date.today().strftime('%d/%m/%Y')}", T_sub))
-    story.append(HRFlowable(width="100%", thickness=2, color=NAVY))
-    story.append(Spacer(1, 10))
+    cabecalho_pdf(story, prof_nome, "", "Calendário de Planejamento")
+    story.append(Paragraph(f"Turma: {turma_nome}  ·  Período: {periodo_label}", T_sub))
+    story.append(Spacer(1, 6))
 
     for (ano_c, mes_c) in meses:
         story.append(Paragraph(f"{MESES_PT[mes_c]} {ano_c}", T_mes))
