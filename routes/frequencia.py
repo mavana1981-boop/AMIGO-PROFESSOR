@@ -17,7 +17,10 @@ DIAS_SEMANA = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _aplicar_filtro(query, filtro, valor, ano):
+def _aplicar_filtro(query, filtro, valor, ano, data_ini=None, data_fim=None):
+    if filtro == "custom" and data_ini and data_fim:
+        query = query.filter(Frequencia.data >= data_ini, Frequencia.data <= data_fim)
+        return query
     query = query.filter(db.extract("year", Frequencia.data) == ano)
     if filtro == "mes":
         query = query.filter(db.extract("month", Frequencia.data) == valor)
@@ -32,9 +35,9 @@ def _aplicar_filtro(query, filtro, valor, ano):
     return query
 
 
-def calcular_stats_aluno(aluno_id, filtro, valor, ano):
+def calcular_stats_aluno(aluno_id, filtro, valor, ano, data_ini=None, data_fim=None):
     q         = Frequencia.query.filter_by(aluno_id=aluno_id)
-    q         = _aplicar_filtro(q, filtro, valor, ano)
+    q         = _aplicar_filtro(q, filtro, valor, ano, data_ini, data_fim)
     registros = q.all()
     total     = len(registros)
     presentes = sum(1 for r in registros if r.status == "presente")
@@ -43,9 +46,9 @@ def calcular_stats_aluno(aluno_id, filtro, valor, ano):
     return total, presentes, faltas, pct
 
 
-def calcular_stats_turma(turma_id, filtro, valor, ano):
+def calcular_stats_turma(turma_id, filtro, valor, ano, data_ini=None, data_fim=None):
     alunos = Aluno.query.filter_by(turma_id=turma_id).all()
-    return {a.id: calcular_stats_aluno(a.id, filtro, valor, ano) for a in alunos}
+    return {a.id: calcular_stats_aluno(a.id, filtro, valor, ano, data_ini, data_fim) for a in alunos}
 
 
 def _get_filtros():
@@ -56,13 +59,21 @@ def _get_filtros():
     bimestre = request.args.get("bimestre", 1,          type=int)
     semestre = request.args.get("semestre", 1,          type=int)
     valor    = {"mes": mes, "bimestre": bimestre, "semestre": semestre, "ano": ano}.get(filtro, mes)
-    return filtro, ano, mes, bimestre, semestre, valor
+    data_ini_str = request.args.get("data_ini", "")
+    data_fim_str = request.args.get("data_fim", "")
+    try:    data_ini = datetime.strptime(data_ini_str, "%Y-%m-%d").date() if data_ini_str else None
+    except: data_ini = None
+    try:    data_fim = datetime.strptime(data_fim_str, "%Y-%m-%d").date() if data_fim_str else None
+    except: data_fim = None
+    return filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str
 
 
-def _periodo_label(filtro, ano, mes, bimestre, semestre):
+def _periodo_label(filtro, ano, mes, bimestre, semestre, data_ini_str="", data_fim_str=""):
     if filtro == "mes":      return f"{MESES_NOMES[mes]}/{ano}"
     if filtro == "bimestre": return f"{bimestre}º Bimestre/{ano}"
     if filtro == "semestre": return f"{semestre}º Semestre/{ano}"
+    if filtro == "custom" and data_ini_str and data_fim_str:
+        return f"{data_ini_str} a {data_fim_str}"
     return f"Ano {ano}"
 
 
@@ -85,12 +96,13 @@ def _meses_do_periodo(filtro, valor, ano, mes):
 @freq_bp.route("/")
 @login_required
 def index():
-    filtro, ano, mes, bimestre, semestre, valor = _get_filtros()
+    filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str = _get_filtros()
     turmas = Turma.query.filter_by(professor_id=current_user.id).all()
-    stats_por_turma = {t.id: calcular_stats_turma(t.id, filtro, valor, ano) for t in turmas}
+    stats_por_turma = {t.id: calcular_stats_turma(t.id, filtro, valor, ano, data_ini, data_fim) for t in turmas}
     return render_template("frequencia/index.html",
         turmas=turmas, stats_por_turma=stats_por_turma,
-        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre)
+        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre,
+        data_ini=data_ini_str, data_fim=data_fim_str)
 
 
 @freq_bp.route("/registrar/<int:turma_id>", methods=["GET", "POST"])
@@ -126,13 +138,14 @@ def registrar(turma_id):
 def historico(turma_id):
     turma  = Turma.query.filter_by(id=turma_id, professor_id=current_user.id).first_or_404()
     alunos = Aluno.query.filter_by(turma_id=turma_id).order_by(Aluno.nome).all()
-    filtro, ano, mes, bimestre, semestre, valor = _get_filtros()
-    stats       = calcular_stats_turma(turma_id, filtro, valor, ano)
+    filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str = _get_filtros()
+    stats       = calcular_stats_turma(turma_id, filtro, valor, ano, data_ini, data_fim)
     q           = Frequencia.query.filter_by(turma_id=turma_id)
-    frequencias = _aplicar_filtro(q, filtro, valor, ano).order_by(Frequencia.data.desc()).all()
+    frequencias = _aplicar_filtro(q, filtro, valor, ano, data_ini, data_fim).order_by(Frequencia.data.desc()).all()
     return render_template("frequencia/historico.html",
-        turma=turma, alunos=alunos, frequencias=frequencias, stats=stats,
-        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre)
+        turma=turma, alunos=alunos, stats=stats,
+        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre,
+        data_ini=data_ini_str, data_fim=data_fim_str)
 
 
 @freq_bp.route("/relatorio/<int:turma_id>")
@@ -140,23 +153,26 @@ def historico(turma_id):
 def relatorio(turma_id):
     turma  = Turma.query.filter_by(id=turma_id, professor_id=current_user.id).first_or_404()
     alunos = Aluno.query.filter_by(turma_id=turma_id).order_by(Aluno.nome).all()
-    filtro, ano, mes, bimestre, semestre, valor = _get_filtros()
+    filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str = _get_filtros()
     aluno_id   = request.args.get("aluno_id", type=int)
     alunos_rel = [a for a in alunos if a.id == aluno_id] if aluno_id else alunos
-    stats      = {a.id: calcular_stats_aluno(a.id, filtro, valor, ano) for a in alunos_rel}
+    stats      = {a.id: calcular_stats_aluno(a.id, filtro, valor, ano, data_ini, data_fim) for a in alunos_rel}
     q          = Frequencia.query.filter_by(turma_id=turma_id)
-    q          = _aplicar_filtro(q, filtro, valor, ano)
+    q          = _aplicar_filtro(q, filtro, valor, ano, data_ini, data_fim)
     if aluno_id:
         q = q.filter_by(aluno_id=aluno_id)
     freq_por_aluno = defaultdict(list)
     for f in q.order_by(Frequencia.data).all():
         freq_por_aluno[f.aluno_id].append(f)
     label = _periodo_label(filtro, ano, mes, bimestre, semestre)
+    if filtro == "custom":
+        label = f"{data_ini_str} a {data_fim_str}" if data_ini_str and data_fim_str else label
     return render_template("frequencia/relatorio.html",
         turma=turma, alunos=alunos_rel, alunos_todos=alunos,
         stats=stats, freq_por_aluno=freq_por_aluno,
         periodo_label=label, aluno_id=aluno_id,
-        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre)
+        filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre,
+        data_ini=data_ini_str, data_fim=data_fim_str)
 
 
 # ── PDF resumo (barras) ───────────────────────────────────────────────────────
@@ -166,12 +182,12 @@ def relatorio(turma_id):
 def relatorio_pdf(turma_id):
     turma  = Turma.query.filter_by(id=turma_id, professor_id=current_user.id).first_or_404()
     alunos = Aluno.query.filter_by(turma_id=turma_id).order_by(Aluno.nome).all()
-    filtro, ano, mes, bimestre, semestre, valor = _get_filtros()
+    filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str = _get_filtros()
     aluno_id   = request.args.get("aluno_id", type=int)
     alunos_rel = [a for a in alunos if a.id == aluno_id] if aluno_id else alunos
-    stats      = {a.id: calcular_stats_aluno(a.id, filtro, valor, ano) for a in alunos_rel}
+    stats      = {a.id: calcular_stats_aluno(a.id, filtro, valor, ano, data_ini, data_fim) for a in alunos_rel}
     q          = Frequencia.query.filter_by(turma_id=turma_id)
-    q          = _aplicar_filtro(q, filtro, valor, ano)
+    q          = _aplicar_filtro(q, filtro, valor, ano, data_ini, data_fim)
     if aluno_id:
         q = q.filter_by(aluno_id=aluno_id)
     freq_por_aluno = defaultdict(list)
@@ -190,20 +206,20 @@ def relatorio_pdf(turma_id):
 def relatorio_calendario(turma_id):
     turma  = Turma.query.filter_by(id=turma_id, professor_id=current_user.id).first_or_404()
     alunos = Aluno.query.filter_by(turma_id=turma_id).order_by(Aluno.nome).all()
-    filtro, ano, mes, bimestre, semestre, valor = _get_filtros()
+    filtro, ano, mes, bimestre, semestre, valor, data_ini, data_fim, data_ini_str, data_fim_str = _get_filtros()
     aluno_id   = request.args.get("aluno_id", type=int)
     alunos_rel = [a for a in alunos if a.id == aluno_id] if aluno_id else alunos
 
     # Buscar todos os registros do período
     q = Frequencia.query.filter_by(turma_id=turma_id)
-    q = _aplicar_filtro(q, filtro, valor, ano)
+    q = _aplicar_filtro(q, filtro, valor, ano, data_ini, data_fim)
     if aluno_id:
         q = q.filter_by(aluno_id=aluno_id)
     freq_por_aluno = defaultdict(dict)   # {aluno_id: {date: status}}
     for f in q.all():
         freq_por_aluno[f.aluno_id][f.data] = f.status
 
-    stats  = {a.id: calcular_stats_aluno(a.id, filtro, valor, ano) for a in alunos_rel}
+    stats  = {a.id: calcular_stats_aluno(a.id, filtro, valor, ano, data_ini, data_fim) for a in alunos_rel}
     meses  = _meses_do_periodo(filtro, valor, ano, mes)
     label  = _periodo_label(filtro, ano, mes, bimestre, semestre)
 
