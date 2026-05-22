@@ -1,122 +1,168 @@
 {% extends "base.html" %}
 {% block title %}Relatório de Frequência{% endblock %}
-{% block page_title %}Relatório — {{ turma.nome }}{% endblock %}
+{% block page_title %}Relatório de Frequência{% endblock %}
 {% block topbar_actions %}
-  <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-accent btn-sm">⬇ PDF Resumo</a>
-  <a href="{{ url_for('frequencia.relatorio_calendario', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-outline btn-sm">📅 PDF Calendário</a>
-  <a href="{{ url_for('frequencia.historico', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre) }}" class="btn btn-outline btn-sm">← Voltar</a>
+  <button onclick="abrirPreviewPDF()" class="btn btn-accent btn-sm">⬇ Baixar PDF</button>
+  <a href="{{ url_for('frequencia.historico', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, data_ini=data_ini, data_fim=data_fim) }}" class="btn btn-outline btn-sm">← Voltar</a>
 {% endblock %}
 {% block extra_css %}
 <style>
 .freq-bar-wrap{width:100px;height:10px;background:var(--neutral-200);border-radius:999px;overflow:hidden;display:inline-block;vertical-align:middle;}
 .freq-bar-fill{height:100%;border-radius:999px;}
+.freq-pct{font-size:.85rem;font-weight:700;margin-left:6px;vertical-align:middle;}
 .aluno-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:16px;overflow:hidden;}
-.aluno-card-header{padding:14px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-.stat-pill{background:white;border:1px solid var(--neutral-200);border-radius:8px;padding:3px 10px;font-size:.8rem;font-weight:600;}
+.aluno-card-header{padding:14px 20px;background:var(--navy-50);border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.aluno-card-nome{font-weight:700;font-size:1rem;color:var(--navy-900);}
+.stat-pill{background:white;border:1px solid var(--neutral-200);border-radius:8px;padding:4px 12px;font-weight:600;font-size:.8125rem;}
+.filter-tab{padding:6px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:600;cursor:pointer;background:white;color:var(--neutral-600);transition:all .15s;text-decoration:none;}
+.filter-tab.active,.filter-tab:hover{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.custom-date-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding:14px 16px;background:var(--navy-50);border-radius:10px;border:1px solid var(--neutral-200);}
+
+/* Modal Preview */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:white;border-radius:16px;width:min(700px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.35);}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;}
+.modal-header h3{font-weight:800;font-size:1.1rem;color:var(--navy-900);}
+.modal-body{padding:24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:10px;justify-content:flex-end;}
+.preview-resumo{border:1px solid var(--neutral-100);border-radius:10px;overflow:hidden;margin-bottom:16px;}
+.preview-header{background:var(--navy-900);color:white;padding:10px 16px;font-weight:700;font-size:.9rem;}
+.preview-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--neutral-100);}
+.preview-row:last-child{border-bottom:none;}
+.preview-nome{flex:1;font-weight:600;font-size:.875rem;}
+.preview-bar-wrap{width:80px;height:8px;background:var(--neutral-200);border-radius:999px;overflow:hidden;}
+.preview-bar-fill{height:100%;border-radius:999px;}
+.preview-pct{font-size:.8rem;font-weight:700;width:42px;text-align:right;}
 </style>
 {% endblock %}
-{% block content %}
 
-<div style="background:var(--navy-900);color:white;border-radius:12px;padding:18px 24px;margin-bottom:20px;">
-  <div style="font-size:1.1rem;font-weight:800;">{{ turma.nome }} — {{ periodo_label }}</div>
-  <div style="font-size:.825rem;opacity:.7;margin-top:2px;">{{ alunos|length }} aluno(s) selecionado(s)</div>
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>{{ turma.nome }} — {{ periodo_label }}</h2>
+  </div>
 </div>
 
 <!-- Filtros -->
 <div class="card" style="margin-bottom:20px;">
-  <div class="card-body" style="padding:14px 20px;">
-    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;">
-      <div>
-        <div class="form-label" style="font-size:.75rem;margin-bottom:6px;">Período</div>
-        <div style="display:flex;gap:4px;">
-          {% for f,lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano')] %}
-          <a href="{{ url_for('frequencia.relatorio', turma_id=turma.id, filtro=f, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}"
-             class="filter-chip {% if filtro==f %}active{% endif %}" style="padding:5px 12px;">{{ lbl }}</a>
-          {% endfor %}
+  <div class="card-body" style="padding:16px 20px;">
+    <form method="GET" id="filtroForm">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+        <div>
+          <label class="form-label" style="font-size:.75rem;margin-bottom:6px;">PERÍODO</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            {% for f, lbl in [('mes','Mês'),('bimestre','Bimestre'),('semestre','Semestre'),('ano','Ano'),('custom','Personalizado')] %}
+            <a href="?filtro={{ f }}&ano={{ ano }}&mes={{ mes }}&bimestre={{ bimestre }}&semestre={{ semestre }}&data_ini={{ data_ini }}&data_fim={{ data_fim }}&aluno_id={{ aluno_id or '' }}"
+               class="filter-tab {% if filtro==f %}active{% endif %}">{{ lbl }}</a>
+            {% endfor %}
+          </div>
         </div>
-      </div>
-      <form method="GET" action="{{ url_for('frequencia.relatorio', turma_id=turma.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-        <input type="hidden" name="filtro" value="{{ filtro }}">
-        <input type="hidden" name="mes" value="{{ mes }}">
-        <input type="hidden" name="bimestre" value="{{ bimestre }}">
-        <input type="hidden" name="semestre" value="{{ semestre }}">
+
         {% if filtro == 'mes' %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Mês</label>
-          <select name="mes" class="form-control" style="width:auto;" onchange="this.form.submit()">
-            {% set mn=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
-            {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ mn[i-1] }}</option>{% endfor %}
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.75rem;">MÊS</label>
+          <select name="mes" class="form-control" onchange="this.form.submit()">
+            {% set meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'] %}
+            {% for i in range(1,13) %}<option value="{{ i }}" {% if i==mes %}selected{% endif %}>{{ meses[i-1] }}</option>{% endfor %}
           </select>
+          <input type="hidden" name="filtro" value="mes">
         </div>
         {% elif filtro == 'bimestre' %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Bimestre</label>
-          <select name="bimestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.75rem;">BIMESTRE</label>
+          <select name="bimestre" class="form-control" onchange="this.form.submit()">
             {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if b==bimestre %}selected{% endif %}>{{ b }}º Bim</option>{% endfor %}
           </select>
+          <input type="hidden" name="filtro" value="bimestre">
         </div>
         {% elif filtro == 'semestre' %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Semestre</label>
-          <select name="semestre" class="form-control" style="width:auto;" onchange="this.form.submit()">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.75rem;">SEMESTRE</label>
+          <select name="semestre" class="form-control" onchange="this.form.submit()">
             <option value="1" {% if semestre==1 %}selected{% endif %}>1º Sem</option>
             <option value="2" {% if semestre==2 %}selected{% endif %}>2º Sem</option>
           </select>
+          <input type="hidden" name="filtro" value="semestre">
         </div>
+        {% elif filtro == 'custom' %}
+        <div class="custom-date-row">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:.75rem;">DE</label>
+            <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:.75rem;">ATÉ</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+          <input type="hidden" name="filtro" value="custom">
+        </div>
+        {% else %}
+        <input type="hidden" name="filtro" value="ano">
         {% endif %}
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Ano</label>
-          <select name="ano" class="form-control" style="width:auto;" onchange="this.form.submit()">
+
+        {% if filtro != 'custom' %}
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.75rem;">ANO</label>
+          <select name="ano" class="form-control" onchange="this.form.submit()">
             {% for y in range(2024,2028) %}<option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>{% endfor %}
           </select>
         </div>
-        <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.75rem;">Aluno</label>
-          <select name="aluno_id" class="form-control" style="width:auto;" onchange="this.form.submit()">
+        {% endif %}
+
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.75rem;">ALUNO</label>
+          <select name="aluno_id" class="form-control" onchange="this.form.submit()">
             <option value="">Todos</option>
             {% for a in alunos_todos %}<option value="{{ a.id }}" {% if aluno_id==a.id %}selected{% endif %}>{{ a.nome }}</option>{% endfor %}
           </select>
         </div>
-      </form>
-    </div>
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="bimestre" value="{{ bimestre }}">
+        <input type="hidden" name="semestre" value="{{ semestre }}">
+        <input type="hidden" name="data_ini" value="{{ data_ini }}">
+        <input type="hidden" name="data_fim" value="{{ data_fim }}">
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- Resumo com barras -->
+<!-- Resumo consolidado -->
 <div class="card" style="margin-bottom:24px;">
   <div class="card-header">
-    <span class="card-title">📊 Resumo de Frequência</span>
-    <div class="d-flex gap-2">
-      <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-accent btn-sm">⬇ PDF Resumo</a>
-      <a href="{{ url_for('frequencia.relatorio_calendario', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, aluno_id=aluno_id or '') }}" class="btn btn-outline btn-sm">📅 Calendário PDF</a>
-    </div>
+    <span class="card-title">Resumo Consolidado</span>
+    <button onclick="abrirPreviewPDF()" class="btn btn-accent btn-sm">⬇ Baixar PDF</button>
   </div>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:220px;">% Frequência</th></tr></thead>
+      <thead><tr><th>Aluno</th><th>Dias Reg.</th><th>Presentes</th><th>Faltas</th><th style="min-width:200px;">% Frequência</th></tr></thead>
       <tbody>
         {% for aluno in alunos %}
-        {% set st = stats.get(aluno.id) %}
-        {% if st %}{% set total=st[0] %}{% set presentes=st[1] %}{% set faltas=st[2] %}{% set pct=st[3] %}
-        {% else %}{% set total=0 %}{% set presentes=0 %}{% set faltas=0 %}{% set pct=none %}{% endif %}
+        {% set st = stats.get(aluno.id, (0,0,0,none)) %}
+        {% set total=st[0] %}
+{% set presentes=st[1] %}
+{% set faltas=st[2] %}
+{% set pct=st[3] %}
         <tr>
           <td class="fw-700">{{ aluno.nome }}</td>
-          <td>{{ total if total > 0 else '—' }}</td>
-          <td>{{ presentes if total > 0 else '—' }}</td>
-          <td>{% if total > 0 %}{% if faltas > 0 %}<span class="badge badge-red">{{ faltas }}</span>{% else %}<span class="badge badge-green">0</span>{% endif %}{% else %}—{% endif %}</td>
+          <td>{{ total or '—' }}</td>
+          <td>{{ presentes if total else '—' }}</td>
+          <td>{% if total %}{% if faltas>0 %}<span class="badge badge-red">{{ faltas }}</span>{% else %}<span class="badge badge-green">0</span>{% endif %}{% else %}—{% endif %}</td>
           <td>
             {% if pct is not none %}
-              {% if pct >= 75 %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--sage-500);"></div></div>
-                <span style="margin-left:8px;color:var(--sage-600);font-weight:700;font-size:.85rem;">{{ pct }}%</span>
-              {% elif pct >= 50 %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--amber-500);"></div></div>
-                <span style="margin-left:8px;color:#92400e;font-weight:700;font-size:.85rem;">{{ pct }}%</span>
-                <span class="badge badge-amber" style="font-size:.6rem;margin-left:4px;">Atenção</span>
-              {% else %}
-                <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:var(--rose-500);"></div></div>
-                <span style="margin-left:8px;color:var(--rose-500);font-weight:700;font-size:.85rem;">{{ pct }}%</span>
-                <span class="badge badge-red" style="font-size:.6rem;margin-left:4px;">⚠ Crítico</span>
-              {% endif %}
+              {% if pct>=75 %}{% set bc='var(--sage-500)' %}{% set pc='var(--sage-600)' %}
+              {% elif pct>=50 %}{% set bc='var(--amber-500)' %}{% set pc='#92400e' %}
+              {% else %}{% set bc='var(--rose-500)' %}{% set pc='var(--rose-500)' %}{% endif %}
+              <div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:{{ pct }}%;background:{{ bc }};"></div></div>
+              <span class="freq-pct" style="color:{{ pc }};">{{ pct }}%</span>
+              {% if pct < 75 %}<span class="badge badge-{% if pct<50 %}red{% else %}amber{% endif %}" style="margin-left:4px;font-size:.6rem;">{% if pct<50 %}⚠ Crítico{% else %}Atenção{% endif %}</span>{% endif %}
             {% else %}<span class="text-muted text-sm">Sem registros</span>{% endif %}
           </td>
         </tr>
-        {% else %}<tr><td colspan="5" class="empty-state">Nenhum aluno.</td></tr>
+        {% else %}
+        <tr><td colspan="5" class="empty-state">Nenhum aluno.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -124,22 +170,23 @@
 </div>
 
 <!-- Detalhe por aluno -->
-<h3 style="font-size:1rem;font-weight:700;color:var(--navy-900);margin-bottom:14px;">Detalhe por Aluno</h3>
+<h3 style="font-size:1rem;font-weight:700;color:var(--navy-900);margin-bottom:16px;">Detalhes por Aluno</h3>
 {% for aluno in alunos %}
 {% set registros = freq_por_aluno.get(aluno.id, []) %}
-{% set st = stats.get(aluno.id) %}
-{% if st %}{% set total=st[0] %}{% set presentes=st[1] %}{% set faltas=st[2] %}{% set pct=st[3] %}
-{% else %}{% set total=0 %}{% set presentes=0 %}{% set faltas=0 %}{% set pct=none %}{% endif %}
+{% set st = stats.get(aluno.id, (0,0,0,none)) %}
+{% set total=st[0] %}
+{% set presentes=st[1] %}
+{% set faltas=st[2] %}
+{% set pct=st[3] %}
 <div class="aluno-card">
   <div class="aluno-card-header">
-    <div style="font-weight:700;font-size:.9375rem;color:var(--navy-900);">{{ aluno.nome }}</div>
+    <div class="aluno-card-nome">{{ aluno.nome }}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }}</span>
-      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }}</span>
+      <span class="stat-pill" style="color:var(--sage-600);">✅ {{ presentes }} presentes</span>
+      <span class="stat-pill" style="color:var(--rose-500);">❌ {{ faltas }} ausências</span>
       {% if pct is not none %}
-        {% if pct>=75 %}<span class="stat-pill" style="color:var(--sage-600);">{{ pct }}%</span>
-        {% elif pct>=50 %}<span class="stat-pill" style="color:#92400e;">{{ pct }}%</span>
-        {% else %}<span class="stat-pill" style="color:var(--rose-500);">{{ pct }}% ⚠</span>{% endif %}
+        {% if pct>=75 %}{% set pc='var(--sage-600)' %}{% elif pct>=50 %}{% set pc='#92400e' %}{% else %}{% set pc='var(--rose-500)' %}{% endif %}
+        <span class="stat-pill" style="color:{{ pc }};">{{ pct }}% frequência</span>
       {% endif %}
     </div>
   </div>
@@ -151,17 +198,81 @@
         {% for f in registros|sort(attribute='data') %}
         <tr>
           <td>{{ f.data.strftime('%d/%m/%Y') }}</td>
-          <td>{% if f.status=='presente' %}<span class="badge badge-green">✅ Presente</span>
-          {% elif f.status=='ausente' %}<span class="badge badge-red">❌ Ausente</span>
-          {% elif f.status=='atestado' %}<span class="badge badge-amber">📄 Atestado</span>
-          {% else %}<span class="badge badge-blue">🔵 Afastamento</span>{% endif %}</td>
+          <td>
+            {% if f.status=='presente' %}<span class="badge badge-green">Presente</span>
+            {% elif f.status=='ausente' %}<span class="badge badge-red">Ausente</span>
+            {% elif f.status=='atestado' %}<span class="badge badge-amber">Atestado</span>
+            {% else %}<span class="badge badge-blue">Afastamento</span>{% endif %}
+          </td>
           <td class="text-muted text-sm">{{ f.observacao or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}<div class="empty-state" style="padding:16px;">Sem registros no período.</div>{% endif %}
+  {% else %}
+  <div class="empty-state" style="padding:20px;">Nenhum registro no período.</div>
+  {% endif %}
 </div>
 {% endfor %}
+
+<!-- ── Modal Preview PDF ── -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📄 Preview do Relatório PDF</h3>
+      <button onclick="fecharPreview()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:.8125rem;color:var(--neutral-500);margin-bottom:16px;">
+        <strong style="color:var(--navy-900);">{{ turma.nome }}</strong> · {{ periodo_label }} · {{ alunos|length }} aluno(s)
+      </div>
+
+      <div class="preview-resumo">
+        <div class="preview-header">Resumo de Frequência</div>
+        {% for aluno in alunos %}
+        {% set st = stats.get(aluno.id, (0,0,0,none)) %}
+        {% set total=st[0] %}
+{% set presentes=st[1] %}
+{% set faltas=st[2] %}
+{% set pct=st[3] %}
+        <div class="preview-row">
+          <div class="preview-nome">{{ aluno.nome }}</div>
+          <div style="font-size:.75rem;color:var(--neutral-400);margin-right:8px;">{{ presentes }}/{{ total }} dias</div>
+          {% if pct is not none %}
+            {% if pct>=75 %}{% set bc='var(--sage-500)' %}{% set pc='var(--sage-600)' %}
+            {% elif pct>=50 %}{% set bc='var(--amber-500)' %}{% set pc='#92400e' %}
+            {% else %}{% set bc='var(--rose-500)' %}{% set pc='var(--rose-500)' %}{% endif %}
+            <div class="preview-bar-wrap"><div class="preview-bar-fill" style="width:{{ pct }}%;background:{{ bc }};"></div></div>
+            <div class="preview-pct" style="color:{{ pc }};">{{ pct }}%</div>
+          {% else %}
+            <div class="preview-pct" style="color:var(--neutral-400);">—</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="background:var(--neutral-50);border-radius:10px;padding:12px 16px;font-size:.8125rem;color:var(--neutral-600);">
+        O PDF incluirá este resumo mais o detalhamento dia a dia de cada aluno.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button onclick="fecharPreview()" class="btn btn-outline">Cancelar</button>
+      <a href="{{ url_for('frequencia.relatorio_pdf', turma_id=turma.id, filtro=filtro, ano=ano, mes=mes, bimestre=bimestre, semestre=semestre, data_ini=data_ini, data_fim=data_fim, aluno_id=aluno_id or '') }}"
+         class="btn btn-accent" id="btnDownload">⬇ Confirmar Download</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirPreviewPDF() {
+  document.getElementById('previewModal').classList.add('open');
+}
+function fecharPreview() {
+  document.getElementById('previewModal').classList.remove('open');
+}
+document.getElementById('previewModal').addEventListener('click', function(e) {
+  if (e.target === this) fecharPreview();
+});
+</script>
 {% endblock %}
