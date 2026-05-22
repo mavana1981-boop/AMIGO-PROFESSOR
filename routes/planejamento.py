@@ -734,7 +734,37 @@ def relatorio_preview():
             q = q.filter_by(turma_id=turma_id)
         planos.extend(q.order_by(PlanoAula.data_aula).all())
 
+    import calendar as cal_mod2
+    formato = request.args.get("formato", "lista")
+
+    # Dados para visão calendário
+    meses_cal = []
+    meses_semanas = {}
+    planos_por_data = {}
+    for (di, df) in datas:
+        m, a = di.month, di.year
+        while (a, m) <= (df.year, df.month):
+            if (m, a) not in meses_cal:
+                meses_cal.append((m, a))
+                c = cal_mod2.Calendar(firstweekday=0)
+                meses_semanas[(m, a)] = c.monthdayscalendar(a, m)
+            if m == 12: m, a = 1, a+1
+            else: m += 1
+
+    for p in planos:
+        k = p.data_aula.strftime("%Y-%m-%d")
+        planos_por_data.setdefault(k, []).append(p)
+
+    # Montar query string sem formato para alternância lista/calendário
+    args = request.args.to_dict()
+    args.pop("formato", None)
+    from urllib.parse import urlencode
+    request_qs = urlencode(args)
+
     return render_template("planejamento/relatorio_preview.html",
         planos=planos, label=label, turma_nome=t_nome,
         prof_nome=current_user.nome, escola=current_user.escola or "",
+        formato=formato, meses=meses_cal,
+        meses_semanas=meses_semanas, planos_por_data=planos_por_data,
+        request_qs=request_qs,
     )
