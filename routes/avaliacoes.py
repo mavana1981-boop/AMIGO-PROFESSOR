@@ -9,13 +9,11 @@ aval_bp = Blueprint("avaliacoes", __name__, url_prefix="/avaliacoes")
 @aval_bp.route("/")
 @login_required
 def index():
+    from datetime import date
+    hoje     = date.today()
     turma_id = request.args.get("turma_id", type=int)
-    query = Avaliacao.query.filter_by(professor_id=current_user.id)
-    if turma_id:
-        query = query.filter_by(turma_id=turma_id)
-    avaliacoes = query.order_by(Avaliacao.data_aplicacao.desc()).all()
-    turmas = Turma.query.filter_by(professor_id=current_user.id).all()
-    return render_template("avaliacoes/index.html", avaliacoes=avaliacoes, turmas=turmas, turma_id=turma_id)
+    turmas   = Turma.query.filter_by(professor_id=current_user.id).all()
+    return render_template("avaliacoes/index.html", turmas=turmas, turma_id=turma_id, hoje=hoje)
 
 @aval_bp.route("/nova", methods=["GET", "POST"])
 @login_required
@@ -59,3 +57,73 @@ def notas(id):
         return redirect(url_for("avaliacoes.index"))
     notas_map = {n.aluno_id: n for n in Nota.query.filter_by(avaliacao_id=id).all()}
     return render_template("avaliacoes/notas.html", avaliacao=avaliacao, alunos=alunos, notas_map=notas_map)
+
+from flask import jsonify
+from datetime import date, datetime
+import calendar as cal_mod
+
+
+@aval_bp.route("/api/mes")
+@login_required
+def api_mes():
+    hoje     = date.today()
+    ano      = request.args.get("ano",  hoje.year,  type=int)
+    mes      = request.args.get("mes",  hoje.month, type=int)
+    turma_id = request.args.get("turma_id", type=int)
+    q = Avaliacao.query.filter_by(professor_id=current_user.id)
+    if turma_id:
+        q = q.filter_by(turma_id=turma_id)
+    avs = q.filter(
+        Avaliacao.data_aplicacao.isnot(None),
+        db.extract("year",  Avaliacao.data_aplicacao) == ano,
+        db.extract("month", Avaliacao.data_aplicacao) == mes,
+    ).all()
+    return jsonify([{
+        "id": a.id, "titulo": a.titulo, "tipo": a.tipo or "outro",
+        "data_aplicacao": a.data_aplicacao.strftime("%Y-%m-%d"),
+        "data_fmt": a.data_aplicacao.strftime("%d/%m/%Y"),
+        "turma": a.turma.nome if a.turma else None,
+        "bimestre": a.bimestre, "valor_total": a.valor_total,
+        "descricao": a.descricao or "",
+    } for a in avs])
+
+
+@aval_bp.route("/relatorio-preview")
+@login_required
+def relatorio_preview():
+    hoje     = date.today()
+    tipo     = request.args.get("tipo", "mes")
+    turma_id = request.args.get("turma_id", type=int)
+    turmas   = Turma.query.filter_by(professor_id=current_user.id).all()
+    t_nome   = next((t.nome for t in turmas if t.id==turma_id), "Todas as turmas") if turma_id else "Todas as turmas"
+
+    if tipo == "mes":
+        ano   = request.args.get("ano", hoje.year, type=int)
+        meses = [int(m) for m in request.args.get("meses", str(hoje.month)).split(",") if m]
+        datas = [(date(ano,m,1), date(ano,m,cal_mod.monthrange(ano,m)[1])) for m in meses]
+        MNOMES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+        label = f"{', '.join(MNOMES[m] for m in meses)}/{ano}"
+    elif tipo == "ano":
+        ano   = request.args.get("ano", hoje.year, type=int)
+        datas = [(date(ano,1,1), date(ano,12,31))]
+        label = f"Ano Letivo {ano}"
+    else:
+        di    = datetime.strptime(request.args.get("data_ini", hoje.replace(day=1).isoformat()), "%Y-%m-%d").date()
+        df    = datetime.strptime(request.args.get("data_fim", hoje.isoformat()), "%Y-%m-%d").date()
+        datas = [(di, df)]
+        label = f"{di.strftime('%d/%m/%Y')} a {df.strftime('%d/%m/%Y')}"
+
+    avaliacoes = []
+    for (di, df) in datas:
+        q = Avaliacao.query.filter(
+            Avaliacao.professor_id == current_user.id,
+            Avaliacao.data_aplicacao >= di,
+            Avaliacao.data_aplicacao <= df,
+        )
+        if turma_id:
+            q = q.filter_by(turma_id=turma_id)
+        avaliacoes.extend(q.order_by(Avaliacao.data_aplicacao).all())
+
+    return render_template("avaliacoes/relatorio_preview.html",
+        avaliacoes=avaliacoes, label=label, turma_nome=t_nome,
+        prof_nome=current_user.nome, escola=current_user.escola or "")
