@@ -2,7 +2,9 @@
 {% block title %}Calendário Escolar{% endblock %}
 {% block page_title %}Calendário{% endblock %}
 {% block topbar_actions %}
+  {% if current_user.email == 'mavana1981@gmail.com' %}
   <a href="{{ url_for('calendario.importar') }}" class="btn btn-primary btn-sm">📥 Importar PDF</a>
+  {% endif %}
   <a href="{{ url_for('calendario.novo') }}" class="btn btn-accent btn-sm">+ Novo Evento</a>
 {% endblock %}
 {% block extra_css %}
@@ -16,7 +18,8 @@
 {% endblock %}
 {% block content %}
 
-<!-- Banner de importação -->
+<!-- Banner de importação — apenas admin -->
+{% if current_user.email == 'mavana1981@gmail.com' %}
 <div class="import-banner">
   <div class="import-banner-text">
     <div class="import-banner-title">📥 Importe o calendário oficial da SEEDF</div>
@@ -26,6 +29,7 @@
     Importar Calendário
   </a>
 </div>
+{% endif %}
 
 <div class="calendar-grid">
   <div><div id="fullcalendar"></div></div>
@@ -53,7 +57,7 @@
         {% else %}
         <div class="empty-state" style="padding:24px;">
           Nenhum evento cadastrado.<br>
-          <a href="{{ url_for('calendario.importar') }}" style="color:var(--navy-600);font-weight:600;">Importe o calendário da escola →</a>
+          {% if current_user.email == 'mavana1981@gmail.com' %}<a href="{{ url_for('calendario.importar') }}" style="color:var(--navy-600);font-weight:600;">Importe o calendário da escola →</a>{% endif %}
         </div>
         {% endfor %}
       </div>
