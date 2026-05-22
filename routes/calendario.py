@@ -233,11 +233,14 @@ Regras:
         }],
     }).encode()
 
+    import os
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
         data    = payload,
         headers = {
             "Content-Type":      "application/json",
+            "x-api-key":         api_key,
             "anthropic-version": "2023-06-01",
         },
         method = "POST",
