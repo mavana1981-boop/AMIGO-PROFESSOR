@@ -73,6 +73,9 @@ def editar(id):
         ev.descricao   = request.form.get("descricao", "")
         ev.cor         = CORES_TIPO.get(ev.tipo, "#6b7280")
         db.session.commit()
+        tipos_sem_aula = {"feriado", "recesso"}
+        if ev.tipo in tipos_sem_aula:
+            _sincronizar_frequencia(ev)
         flash("Evento atualizado!", "success")
         return redirect(url_for("calendario.index"))
     return render_template("calendario/form.html", evento=ev, cores=CORES_TIPO)
@@ -102,6 +105,9 @@ def _salvar_evento_form(form):
     )
     db.session.add(ev)
     db.session.commit()
+    tipos_sem_aula = {"feriado", "recesso"}
+    if ev.tipo in tipos_sem_aula:
+        _sincronizar_frequencia(ev)
     return ev
 
 
@@ -384,7 +390,8 @@ def _sincronizar_frequencia(ev):
     if not turmas:
         return
 
-    d = ev.data_inicio
+    from datetime import timedelta
+    d   = ev.data_inicio
     fim = ev.data_fim or ev.data_inicio
     while d <= fim:
         for turma in turmas:
@@ -403,7 +410,21 @@ def _sincronizar_frequencia(ev):
                         status="afastamento",
                         observacao=f"Evento: {ev.titulo}",
                     ))
-        d = date(d.year, d.month, d.day)
-        from datetime import timedelta
         d += timedelta(days=1)
     db.session.commit()
+
+
+# ── Ressincronizar todos os feriados/recessos existentes com frequência ────────
+
+@cal_bp.route("/api/ressincronizar", methods=["POST"])
+@login_required
+def api_ressincronizar():
+    """Ressincroniza feriados e recessos já cadastrados com a frequência."""
+    tipos_sem_aula = {"feriado", "recesso"}
+    evs = EventoCalendario.query.filter(
+        EventoCalendario.professor_id == current_user.id,
+        EventoCalendario.tipo.in_(tipos_sem_aula),
+    ).all()
+    for ev in evs:
+        _sincronizar_frequencia(ev)
+    return jsonify({"ok": True, "sincronizados": len(evs)})
