@@ -2,6 +2,7 @@
 {% block title %}Calendário Escolar{% endblock %}
 {% block page_title %}Calendário{% endblock %}
 {% block topbar_actions %}
+  <button onclick="ressincronizar()" class="btn btn-outline btn-sm" title="Aplica feriados/recessos já cadastrados na frequência">🔄 Sincronizar Frequência</button>
   {% if current_user.email == 'mavana1981@gmail.com' %}
   <a href="{{ url_for('calendario.importar') }}" class="btn btn-primary btn-sm">📥 Importar PDF</a>
   {% endif %}
@@ -305,6 +306,12 @@ async function salvarEvento() {
 
 function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.mov').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+async function ressincronizar() {
+  const r = await fetch('/calendario/api/ressincronizar', {method:'POST'});
+  const d = await r.json();
+  alert(`✅ ${d.sincronizados} evento(s) sincronizado(s) com a frequência!`);
+}
 
 // Init
 carregar(anoAtual, mesAtual);
