@@ -306,3 +306,104 @@ def _extrair_eventos_com_claude(pdf_b64: str, ano_letivo: str) -> list[dict]:
             "descricao":   str(ev.get("descricao", "") or "").strip(),
         })
     return resultado
+
+
+# ── API: eventos do mês ───────────────────────────────────────────────────────
+
+@cal_bp.route("/api/mes")
+@login_required
+def api_mes():
+    """Retorna eventos do mês para o calendário dinâmico."""
+    hoje = date.today()
+    ano  = request.args.get("ano",  hoje.year,  type=int)
+    mes  = request.args.get("mes",  hoje.month, type=int)
+    from calendar import monthrange
+    ultimo = monthrange(ano, mes)[1]
+    di = date(ano, mes, 1)
+    df = date(ano, mes, ultimo)
+    evs = EventoCalendario.query.filter(
+        EventoCalendario.professor_id == current_user.id,
+        EventoCalendario.data_inicio  <= df,
+        db.or_(
+            EventoCalendario.data_fim   >= di,
+            EventoCalendario.data_fim.is_(None),
+        )
+    ).all()
+    return jsonify([{
+        "id":          e.id,
+        "titulo":      e.titulo,
+        "tipo":        e.tipo or "outro",
+        "cor":         e.cor or "#6b7280",
+        "descricao":   e.descricao or "",
+        "data_inicio": e.data_inicio.isoformat(),
+        "data_fim":    e.data_fim.isoformat() if e.data_fim else e.data_inicio.isoformat(),
+    } for e in evs])
+
+
+# ── API: salvar evento (criar ou editar) via JSON ─────────────────────────────
+
+@cal_bp.route("/api/salvar", methods=["POST"])
+@cal_bp.route("/api/salvar/<int:id>", methods=["POST"])
+@login_required
+def api_salvar(id=None):
+    dados = request.get_json()
+    try:
+        di = datetime.strptime(dados["data_inicio"], "%Y-%m-%d").date()
+        df = datetime.strptime(dados["data_fim"],    "%Y-%m-%d").date() if dados.get("data_fim") else di
+    except (ValueError, KeyError):
+        return jsonify({"ok": False, "erro": "Data inválida"}), 400
+
+    if id:
+        ev = EventoCalendario.query.filter_by(id=id, professor_id=current_user.id).first_or_404()
+    else:
+        ev = EventoCalendario(professor_id=current_user.id)
+        db.session.add(ev)
+
+    ev.titulo      = dados.get("titulo", "Evento").strip()
+    ev.tipo        = dados.get("tipo", "outro")
+    ev.cor         = dados.get("cor", "#6b7280")
+    ev.descricao   = dados.get("descricao", "") or None
+    ev.data_inicio = di
+    ev.data_fim    = df
+
+    db.session.commit()
+
+    # ── Sincronizar com frequência ────────────────────────────────────────────
+    # Para feriados e recessos, marca afastamento em todas as turmas do professor
+    tipos_sem_aula = {"feriado", "recesso"}
+    if ev.tipo in tipos_sem_aula:
+        _sincronizar_frequencia(ev)
+
+    return jsonify({"ok": True, "id": ev.id})
+
+
+def _sincronizar_frequencia(ev):
+    """Cria registros de 'afastamento' na frequência para todos os dias do evento."""
+    from models.models import Turma, Aluno, Frequencia
+    turmas = Turma.query.filter_by(professor_id=current_user.id).all()
+    if not turmas:
+        return
+
+    d = ev.data_inicio
+    fim = ev.data_fim or ev.data_inicio
+    while d <= fim:
+        for turma in turmas:
+            for aluno in turma.alunos:
+                existe = Frequencia.query.filter_by(
+                    aluno_id=aluno.id,
+                    professor_id=current_user.id,
+                    data=d,
+                ).first()
+                if not existe:
+                    db.session.add(Frequencia(
+                        aluno_id=aluno.id,
+                        turma_id=turma.id,
+                        professor_id=current_user.id,
+                        data=d,
+                        status="afastamento",
+                        observacao=f"Evento: {ev.titulo}",
+                    ))
+        d = date(d.year, d.month, d.day)
+        from datetime import timedelta
+        d += timedelta(days=1)
+    db.session.commit()
