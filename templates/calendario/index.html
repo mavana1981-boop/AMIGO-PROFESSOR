@@ -5,95 +5,308 @@
   {% if current_user.email == 'mavana1981@gmail.com' %}
   <a href="{{ url_for('calendario.importar') }}" class="btn btn-primary btn-sm">📥 Importar PDF</a>
   {% endif %}
-  <a href="{{ url_for('calendario.novo') }}" class="btn btn-accent btn-sm">+ Novo Evento</a>
 {% endblock %}
 {% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet" />
 <style>
-.import-banner{background:linear-gradient(135deg,var(--navy-900),var(--navy-700));border-radius:14px;padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.import-banner-text{color:white;}
-.import-banner-title{font-weight:800;font-size:1rem;margin-bottom:4px;}
-.import-banner-sub{font-size:.8125rem;opacity:.8;}
+.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.cal-nav-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cal-nav-btn:hover{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.cal-nav-title{font-size:1.1rem;font-weight:800;color:var(--navy-900);min-width:180px;text-align:center;}
+.cal-hoje-btn{padding:5px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);background:white;font-size:.8rem;font-weight:600;cursor:pointer;}
+.cal-hoje-btn:hover{background:var(--navy-50);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:12px;overflow:hidden;background:var(--neutral-200);gap:1px;}
+.cal-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:8px 4px;text-transform:uppercase;letter-spacing:.05em;}
+.cal-cell{min-height:110px;background:white;padding:7px 8px;transition:background .1s;}
+.cal-cell:hover{background:var(--navy-50);}
+.cal-cell.vazio{background:var(--neutral-50);}
+.cal-cell.vazio:hover{background:var(--neutral-50);}
+.cal-cell.fds{background:#f8f9fa;}
+.cal-cell.hoje-cell{background:var(--navy-50);}
+.cal-cell.hoje-cell .cal-dia{background:var(--navy-700);color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-cell.vazio .cal-dia,.cal-cell.fds .cal-dia{color:var(--neutral-300);}
+.cal-event{font-size:.7rem;line-height:1.35;border-radius:5px;padding:3px 7px;margin-bottom:3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:white;font-weight:600;}
+.cal-event:hover{opacity:.85;}
+.cal-add{font-size:.65rem;color:var(--neutral-300);margin-top:4px;display:none;cursor:pointer;}
+.cal-cell:hover .cal-add{display:block;color:var(--navy-400);}
+
+/* Legenda */
+.legenda{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+.legenda-item{display:flex;align-items:center;gap:5px;font-size:.78rem;color:var(--neutral-600);}
+.legenda-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+
+/* Modais */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;}
+.mov.open{display:flex;}
+.mbox{background:white;border-radius:16px;width:min(520px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);}
+.mhead{padding:18px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1;}
+.mbody{padding:20px 24px;display:grid;gap:14px;}
+.mfoot{padding:14px 24px;border-top:1px solid var(--neutral-200);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:white;}
+.tipo-btn{padding:6px 14px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;background:white;transition:all .15s;}
+.tipo-btn.sel{color:white;}
 </style>
 {% endblock %}
+
 {% block content %}
-
-<!-- Banner de importação — apenas admin -->
-{% if current_user.email == 'mavana1981@gmail.com' %}
-<div class="import-banner">
-  <div class="import-banner-text">
-    <div class="import-banner-title">📥 Importe o calendário oficial da SEEDF</div>
-    <div class="import-banner-sub">Faça upload do PDF e a IA extrai todos os feriados, recessos e eventos automaticamente</div>
-  </div>
-  <a href="{{ url_for('calendario.importar') }}" class="btn btn-sm" style="background:var(--amber-500);color:white;font-weight:700;white-space:nowrap;">
-    Importar Calendário
-  </a>
+<!-- Legenda -->
+<div class="legenda">
+  {% for tipo,cor in [('Feriado','#e05c5c'),('Recesso','#9ca3af'),('Reunião','#3B82F6'),('Prova','#f59e0b'),('Evento','#4d7c5f'),('Comemorativo','#8b5cf6'),('Outro','#6b7280')] %}
+  <div class="legenda-item"><div class="legenda-dot" style="background:{{ cor }};"></div>{{ tipo }}</div>
+  {% endfor %}
 </div>
-{% endif %}
 
-<div class="calendar-grid">
-  <div><div id="fullcalendar"></div></div>
-  <div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Próximos Eventos</span></div>
-      <div class="panel-list">
-        {% for ev in eventos[:15] %}
-        <div class="panel-item">
-          <div class="panel-item-dot" style="background:{{ ev.cor }};"></div>
-          <div class="panel-item-body">
-            <div class="panel-item-title">{{ ev.titulo }}</div>
-            <div class="panel-item-sub">{{ ev.tipo or 'Evento' }}{% if ev.descricao %} · {{ ev.descricao[:40] }}{% endif %}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-            <span class="panel-item-right">{{ ev.data_inicio.strftime('%d/%m') }}</span>
-            <div style="display:flex;gap:4px;">
-              <a href="{{ url_for('calendario.editar', id=ev.id) }}" style="font-size:.7rem;color:var(--navy-500);font-weight:600;padding:2px 6px;">✏</a>
-              <form method="POST" action="{{ url_for('calendario.excluir', id=ev.id) }}" data-confirm="Remover este evento?">
-                <button type="submit" style="font-size:.7rem;color:var(--rose-500);font-weight:600;padding:2px 6px;">✕</button>
-              </form>
-            </div>
-          </div>
-        </div>
-        {% else %}
-        <div class="empty-state" style="padding:24px;">
-          Nenhum evento cadastrado.<br>
-          {% if current_user.email == 'mavana1981@gmail.com' %}<a href="{{ url_for('calendario.importar') }}" style="color:var(--navy-600);font-weight:600;">Importe o calendário da escola →</a>{% endif %}
-        </div>
-        {% endfor %}
-      </div>
+<!-- Navegação -->
+<div class="cal-nav">
+  <button class="cal-nav-btn" onclick="mudarMes(-1)">‹</button>
+  <div class="cal-nav-title" id="navTitle"></div>
+  <button class="cal-nav-btn" onclick="mudarMes(1)">›</button>
+  <button class="cal-hoje-btn" onclick="irHoje()">Hoje</button>
+</div>
+
+<!-- Grid -->
+<div class="cal-grid" id="calGrid">
+  {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+  <div class="cal-dow">{{ d }}</div>
+  {% endfor %}
+</div>
+
+<!-- Modal: detalhe do evento -->
+<div class="mov" id="modalEv">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 id="evTitulo" style="font-weight:800;font-size:1rem;color:var(--navy-900);"></h3>
+      <button onclick="fecharModal('modalEv')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
     </div>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="card-header"><span class="card-title">Legenda</span></div>
-      <div class="card-body">
-        {% for tipo,cor in [('Feriado','#e05c5c'),('Recesso','#9ca3af'),('Reunião','#3B82F6'),
-                             ('Prova','#f59e0b'),('Evento','#4d7c5f'),('Comemorativo','#8b5cf6'),('Outro','#6b7280')] %}
-        <div class="d-flex align-center gap-2" style="margin-bottom:8px;font-size:.85rem;">
-          <div style="width:12px;height:12px;border-radius:3px;background:{{ cor }};flex-shrink:0;"></div>
-          {{ tipo }}
-        </div>
-        {% endfor %}
-      </div>
+    <div class="mbody" id="evBody"></div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalEv')" class="btn btn-outline btn-sm">Fechar</button>
+      <button onclick="excluirEvento()" class="btn btn-danger btn-sm">🗑 Excluir</button>
+      <button onclick="editarEvento()" class="btn btn-primary btn-sm">✏ Editar</button>
     </div>
   </div>
 </div>
-{% endblock %}
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+<!-- Modal: novo/editar evento -->
+<div class="mov" id="modalForm">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 id="formTitulo" style="font-weight:800;font-size:1rem;color:var(--navy-900);">+ Novo Evento</h3>
+      <button onclick="fecharModal('modalForm')" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="mbody">
+      <div>
+        <label class="form-label" style="font-size:.75rem;">TÍTULO *</label>
+        <input class="form-control" id="fTitulo" placeholder="Nome do evento" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label" style="font-size:.75rem;">DATA INÍCIO *</label>
+          <input class="form-control" type="date" id="fDataIni" />
+        </div>
+        <div>
+          <label class="form-label" style="font-size:.75rem;">DATA FIM <span style="color:var(--neutral-400);font-weight:400;">(opcional)</span></label>
+          <input class="form-control" type="date" id="fDataFim" />
+        </div>
+      </div>
+      <div>
+        <label class="form-label" style="font-size:.75rem;">TIPO</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;" id="tipoBtns">
+          {% for tipo,cor in [('feriado','#e05c5c'),('recesso','#9ca3af'),('reuniao','#3B82F6'),('prova','#f59e0b'),('evento','#4d7c5f'),('comemorativo','#8b5cf6'),('outro','#6b7280')] %}
+          <button type="button" class="tipo-btn" data-tipo="{{ tipo }}" data-cor="{{ cor }}"
+                  onclick="selTipo(this)" style="border-color:{{ cor }};">
+            {{ tipo|capitalize }}
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="fTipo" value="outro" />
+        <input type="hidden" id="fCor" value="#6b7280" />
+      </div>
+      <div>
+        <label class="form-label" style="font-size:.75rem;">DESCRIÇÃO</label>
+        <textarea class="form-control" id="fDescricao" rows="2" placeholder="Observações..."></textarea>
+      </div>
+      <div style="background:var(--sage-50);border:1px solid var(--sage-200);border-radius:8px;padding:10px 14px;font-size:.8125rem;color:var(--sage-700);">
+        <strong>📅→✅</strong> Este evento será automaticamente marcado como <strong>sem aula</strong> na frequência de todas as suas turmas no(s) dia(s) correspondente(s).
+      </div>
+    </div>
+    <div class="mfoot">
+      <button onclick="fecharModal('modalForm')" class="btn btn-outline btn-sm">Cancelar</button>
+      <button onclick="salvarEvento()" class="btn btn-primary btn-sm">Salvar Evento</button>
+    </div>
+  </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const cal = new FullCalendar.Calendar(document.getElementById('fullcalendar'), {
-    initialView:   'dayGridMonth',
-    locale:        'pt-br',
-    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listMonth' },
-    events:        '{{ url_for("calendario.api_eventos") }}',
-    height:        'auto',
-    eventClick: function(info) {
-      const d = info.event.extendedProps.descricao;
-      alert(info.event.title + (d ? '\n\n' + d : ''));
+const HOJE  = {ano:{{ hoje.year }}, mes:{{ hoje.month }}, dia:{{ hoje.day }}};
+const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const CORES = {feriado:'#e05c5c',recesso:'#9ca3af',reuniao:'#3B82F6',prova:'#f59e0b',evento:'#4d7c5f',comemorativo:'#8b5cf6',outro:'#6b7280'};
+
+let anoAtual=HOJE.ano, mesAtual=HOJE.mes, eventos=[], evAtualId=null, modoEdicao=false;
+
+// ── Carregar e renderizar ─────────────────────────────────────────────────────
+async function carregar(ano, mes) {
+  const r = await fetch(`/calendario/api/mes?ano=${ano}&mes=${mes}`);
+  eventos = await r.json();
+  renderizar(ano, mes);
+}
+
+function renderizar(ano, mes) {
+  document.getElementById('navTitle').textContent = `${MESES[mes]} ${ano}`;
+  const grid = document.getElementById('calGrid');
+  while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+  const dim = new Date(ano, mes, 0).getDate();
+  let ini   = new Date(ano, mes-1, 1).getDay(); ini = (ini+6)%7;
+
+  for (let i=0; i<ini; i++)
+    grid.insertAdjacentHTML('beforeend','<div class="cal-cell vazio"></div>');
+
+  // Índice eventos por data
+  const map = {};
+  eventos.forEach(ev => {
+    // Expande eventos multi-dia
+    let d = new Date(ev.data_inicio + 'T00:00:00');
+    const fim = ev.data_fim ? new Date(ev.data_fim + 'T00:00:00') : d;
+    while (d <= fim) {
+      const k = d.toISOString().slice(0,10);
+      if (!map[k]) map[k] = [];
+      map[k].push(ev);
+      d.setDate(d.getDate()+1);
     }
   });
-  cal.render();
-});
+
+  for (let dia=1; dia<=dim; dia++) {
+    const dow    = (ini+dia-1)%7, fds=dow>=5;
+    const isHoje = ano===HOJE.ano && mes===HOJE.mes && dia===HOJE.dia;
+    const dStr   = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const evs    = map[dStr]||[];
+
+    let cls = 'cal-cell'+(fds?' fds':'')+(isHoje?' hoje-cell':'');
+    let inner = `<div class="cal-dia">${dia}</div>`;
+    evs.slice(0,3).forEach(ev => {
+      const cor = ev.cor || CORES[ev.tipo] || '#6b7280';
+      inner += `<div class="cal-event" style="background:${cor}" onclick="abrirEvento(${ev.id})">${ev.titulo}</div>`;
+    });
+    if (evs.length > 3) inner += `<div style="font-size:.65rem;color:var(--neutral-400);">+${evs.length-3} mais</div>`;
+    inner += `<div class="cal-add" onclick="abrirNovoEvento('${dStr}')">+ evento</div>`;
+    grid.insertAdjacentHTML('beforeend', `<div class="${cls}">${inner}</div>`);
+  }
+  const rest = (7-(ini+dim)%7)%7;
+  for (let i=0; i<rest; i++)
+    grid.insertAdjacentHTML('beforeend','<div class="cal-cell vazio"></div>');
+}
+
+function mudarMes(d) {
+  mesAtual+=d;
+  if(mesAtual>12){mesAtual=1;anoAtual++;}
+  if(mesAtual<1){mesAtual=12;anoAtual--;}
+  carregar(anoAtual,mesAtual);
+}
+function irHoje(){ anoAtual=HOJE.ano; mesAtual=HOJE.mes; carregar(anoAtual,mesAtual); }
+
+// ── Modal detalhe ─────────────────────────────────────────────────────────────
+function abrirEvento(id) {
+  const ev = eventos.find(x=>x.id===id); if(!ev) return;
+  evAtualId = id;
+  document.getElementById('evTitulo').textContent = ev.titulo;
+  const cor = ev.cor || CORES[ev.tipo] || '#6b7280';
+  let html = `<div style="display:grid;gap:10px;">
+    <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Data</div>
+      <div style="margin-top:2px;">${fmtData(ev.data_inicio)}${ev.data_fim && ev.data_fim!==ev.data_inicio ? ' → '+fmtData(ev.data_fim) : ''}</div></div>
+    <div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Tipo</div>
+      <div style="margin-top:2px;"><span style="background:${cor};color:white;padding:2px 10px;border-radius:6px;font-size:.8rem;font-weight:700;">${ev.tipo||'—'}</span></div></div>
+    ${ev.descricao?`<div><div style="font-size:.7rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;">Descrição</div><div style="margin-top:2px;font-size:.875rem;">${ev.descricao}</div></div>`:''}
+  </div>`;
+  document.getElementById('evBody').innerHTML = html;
+  document.getElementById('modalEv').classList.add('open');
+}
+
+function fmtData(s) {
+  if (!s) return '—';
+  const [a,m,d] = s.split('-');
+  return `${d}/${m}/${a}`;
+}
+
+async function excluirEvento() {
+  if (!evAtualId || !confirm('Excluir este evento?')) return;
+  await fetch(`/calendario/excluir/${evAtualId}`, {method:'POST'});
+  fecharModal('modalEv');
+  carregar(anoAtual, mesAtual);
+}
+
+function editarEvento() {
+  const ev = eventos.find(x=>x.id===evAtualId); if(!ev) return;
+  fecharModal('modalEv');
+  modoEdicao = true;
+  document.getElementById('formTitulo').textContent = '✏ Editar Evento';
+  document.getElementById('fTitulo').value     = ev.titulo;
+  document.getElementById('fDataIni').value    = ev.data_inicio;
+  document.getElementById('fDataFim').value    = ev.data_fim||'';
+  document.getElementById('fDescricao').value  = ev.descricao||'';
+  document.getElementById('fTipo').value       = ev.tipo||'outro';
+  document.getElementById('fCor').value        = ev.cor||'#6b7280';
+  document.querySelectorAll('.tipo-btn').forEach(b => {
+    const sel = b.dataset.tipo === (ev.tipo||'outro');
+    b.classList.toggle('sel', sel);
+    if (sel) b.style.background = b.dataset.cor;
+    else b.style.background = 'white'; b.style.color = sel ? 'white' : '';
+  });
+  document.getElementById('modalForm').classList.add('open');
+}
+
+// ── Modal novo evento ─────────────────────────────────────────────────────────
+function abrirNovoEvento(data) {
+  modoEdicao = false; evAtualId = null;
+  document.getElementById('formTitulo').textContent = '+ Novo Evento';
+  document.getElementById('fTitulo').value    = '';
+  document.getElementById('fDataIni').value   = data||'';
+  document.getElementById('fDataFim').value   = '';
+  document.getElementById('fDescricao').value = '';
+  document.getElementById('fTipo').value      = 'outro';
+  document.getElementById('fCor').value       = '#6b7280';
+  document.querySelectorAll('.tipo-btn').forEach(b => {
+    b.classList.remove('sel'); b.style.background='white'; b.style.color='';
+  });
+  document.getElementById('modalForm').classList.add('open');
+}
+
+function selTipo(btn) {
+  document.querySelectorAll('.tipo-btn').forEach(b => {
+    b.classList.remove('sel'); b.style.background='white'; b.style.color='';
+  });
+  btn.classList.add('sel');
+  btn.style.background = btn.dataset.cor;
+  btn.style.color = 'white';
+  document.getElementById('fTipo').value = btn.dataset.tipo;
+  document.getElementById('fCor').value  = btn.dataset.cor;
+}
+
+async function salvarEvento() {
+  const titulo = document.getElementById('fTitulo').value.trim();
+  const dataIni = document.getElementById('fDataIni').value;
+  if (!titulo || !dataIni) { alert('Título e data de início são obrigatórios.'); return; }
+
+  const payload = {
+    titulo, data_inicio: dataIni,
+    data_fim:   document.getElementById('fDataFim').value || dataIni,
+    tipo:       document.getElementById('fTipo').value,
+    cor:        document.getElementById('fCor').value,
+    descricao:  document.getElementById('fDescricao').value,
+  };
+
+  const url  = modoEdicao ? `/calendario/api/salvar/${evAtualId}` : '/calendario/api/salvar';
+  await fetch(url, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  fecharModal('modalForm');
+  carregar(anoAtual, mesAtual);
+}
+
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.mov').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+// Init
+carregar(anoAtual, mesAtual);
 </script>
 {% endblock %}
