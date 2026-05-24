@@ -131,6 +131,13 @@
               <div class="cal-print-dia">{{ dia }}</div>
               {% for p in ps %}
               <div class="cal-print-ev" title="{{ p.titulo }}">{{ p.titulo }}</div>
+              {% set ativs = atividades_por_plano.get(p.id, []) %}
+              {% for a in ativs %}
+              <div style="font-size:.58rem;line-height:1.2;background:#fef3c7;border-left:2px solid #f59e0b;padding:1px 3px;margin-bottom:1px;border-radius:0 2px 2px 0;overflow:hidden;">
+                🎯 {{ a.descricao[:30] }}{% if a.descricao|length > 30 %}…{% endif %}
+                {% if a.alunos %}<span style="color:#92400e;"> ({{ a.alunos|join(', ') }})</span>{% endif %}
+              </div>
+              {% endfor %}
               {% endfor %}
             </div>
           {% endif %}
@@ -176,6 +183,21 @@
     </div>
     {% endif %}
     {% endfor %}
+
+    {% set ativs = atividades_por_plano.get(p.id, []) %}
+    {% if ativs %}
+    <div style="grid-column:span 2;margin-top:6px;border-top:1px dashed var(--neutral-200);padding-top:10px;">
+      <div class="campo-label" style="color:#92400e;margin-bottom:6px;">🎯 Atividades Individualizadas</div>
+      {% for a in ativs %}
+      <div style="margin-bottom:6px;padding:8px 12px;background:#fef3c7;border-left:3px solid #f59e0b;border-radius:0 6px 6px 0;">
+        <div style="font-size:.8rem;font-weight:700;color:var(--navy-900);margin-bottom:3px;">{{ a.descricao }}</div>
+        {% if a.alunos %}
+        <div style="font-size:.75rem;color:#92400e;"><strong>Alunos:</strong> {{ a.alunos|join(', ') }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 </div>
