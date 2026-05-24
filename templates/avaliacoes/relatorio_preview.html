@@ -65,11 +65,6 @@
   </div>
 </div>
 
-<div class="view-tabs">
-  <a href="?{{ request_qs }}&formato=lista"      class="view-tab {% if formato=='lista' %}active{% endif %}">📋 Lista</a>
-  <a href="?{{ request_qs }}&formato=calendario" class="view-tab {% if formato=='calendario' %}active{% endif %}">📅 Calendário</a>
-  <a href="?{{ request_qs }}&formato=ambos"      class="view-tab {% if formato=='ambos' %}active{% endif %}">📋📅 Ambos</a>
-</div>
 
 {% if not avaliacoes %}
 <div class="card"><div class="empty-state" style="padding:48px;">Nenhum registro no período selecionado.</div></div>
@@ -83,8 +78,8 @@
   </div>
 </div>
 
-{% if formato in ['calendario','ambos'] %}
-<div id="secaoCal">
+{% if false %}
+<div id="secaoCal" style="display:none;">
 {% for mes_c, ano_c in meses %}
   {% set nome_mes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes_c] %}
   <div class="cal-mes-bloco">
@@ -111,9 +106,9 @@
 </div>
 {% endif %}
 
-{% if formato in ['lista','ambos'] %}
-<div id="secaoLista">
-{% if formato == 'ambos' %}
+{% if true %}
+<div id="secaoLista" style="display:none;">
+{% if false %}
 <div style="font-weight:800;font-size:1rem;color:var(--navy-900);margin:20px 0 14px;padding-top:4px;border-top:2px solid var(--neutral-100);">Lista de Registros</div>
 {% endif %}
 {% for a in avaliacoes %}
@@ -164,9 +159,14 @@
 <script>
 function abrirImpressao(){document.getElementById('modalImp').classList.add('open');}
 function fecharModal(){document.getElementById('modalImp').classList.remove('open');}
-function imprimirSo(fmt){fecharModal();window.location.href=`?{{ request_qs }}&formato=${fmt}&print=1`;}
-if(new URLSearchParams(window.location.search).get('print')==='1')
-  window.addEventListener('load',()=>setTimeout(()=>window.print(),500));
+function imprimirSo(fmt){
+  fecharModal();
+  const cal=document.getElementById('secaoCal');
+  const lista=document.getElementById('secaoLista');
+  if(cal)  cal.style.display=(fmt==='calendario'||fmt==='ambos')?'block':'none';
+  if(lista)lista.style.display=(fmt==='lista'||fmt==='ambos')?'block':'none';
+  setTimeout(()=>{window.print();if(cal)cal.style.display='none';if(lista)lista.style.display='none';},200);
+}
 document.getElementById('modalImp').addEventListener('click',e=>{if(e.target===document.getElementById('modalImp'))fecharModal();});
 </script>
 {% endblock %}
