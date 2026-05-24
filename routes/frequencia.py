@@ -698,12 +698,39 @@ def relatorio_preview():
 
     turma_nome = next((t.nome for t in turmas if t.id==turma_id), "Todas as turmas") if turma_id else "Todas as turmas"
 
+    # Dados para visão calendário
+    import calendar as cal_mod_freq
+    meses_cal = []; meses_semanas = {}; itens_por_data = {}
+    for (di, df) in datas:
+        m, a = di.month, di.year
+        while (a, m) <= (df.year, df.month):
+            if (m, a) not in meses_cal:
+                meses_cal.append((m, a))
+                cc = cal_mod_freq.Calendar(firstweekday=0)
+                meses_semanas[(m, a)] = cc.monthdayscalendar(a, m)
+            if m == 12: m, a = 1, a+1
+            else: m += 1
+    for aluno in alunos:
+        for reg in detalhes.get(aluno.id, []):
+            k = reg.data.strftime("%Y-%m-%d")
+            itens_por_data.setdefault(k, []).append({
+                "nome": aluno.nome, "status": reg.status
+            })
+
+    formato = request.args.get("formato", "lista")
+    args = request.args.to_dict()
+    args.pop("formato", None); args.pop("print", None)
+    from urllib.parse import urlencode
+    request_qs = urlencode(args)
+
     return render_template("frequencia/relatorio_preview.html",
         alunos=alunos, stats=stats, detalhes=detalhes,
         label=label, turma_nome=turma_nome,
         prof_nome=current_user.nome, escola=current_user.escola or "",
         tipo=tipo, turma_id=turma_id,
-        request_args=request.args.to_dict(),
+        meses=meses_cal, meses_semanas=meses_semanas,
+        itens_por_data=itens_por_data,
+        formato=formato, request_qs=request_qs,
     )
 
 
