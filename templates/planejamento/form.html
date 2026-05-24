@@ -1,64 +1,255 @@
 {% extends "base.html" %}
 {% block title %}{% if plano %}Editar Plano{% else %}Novo Plano{% endif %}{% endblock %}
 {% block page_title %}{% if plano %}Editar Plano{% else %}Novo Plano de Aula{% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+.ativ-card{background:white;border:1.5px solid var(--neutral-200);border-radius:12px;padding:16px;margin-bottom:12px;position:relative;}
+.ativ-card:hover{border-color:var(--navy-300);}
+.ativ-remove{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--rose-400);font-size:1.1rem;cursor:pointer;padding:2px 6px;border-radius:6px;}
+.ativ-remove:hover{background:var(--rose-50);color:var(--rose-600);}
+.alunos-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.aluno-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;background:white;color:var(--neutral-600);user-select:none;}
+.aluno-chip.sel{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+.aluno-chip input[type=checkbox]{display:none;}
+.add-ativ-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px dashed var(--neutral-300);border-radius:10px;font-size:.875rem;font-weight:600;color:var(--neutral-500);cursor:pointer;background:none;width:100%;transition:all .15s;margin-top:4px;}
+.add-ativ-btn:hover{border-color:var(--navy-400);color:var(--navy-600);background:var(--navy-50);}
+.section-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.section-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
+</style>
+{% endblock %}
 {% block content %}
-<div style="max-width:780px;">
-  <form method="POST">
-    <div class="card">
-      <div class="card-header"><span class="card-title">Informações do Plano</span></div>
-      <div class="card-body">
-        <div class="form-group"><label class="form-label">Título *</label>
-          <input class="form-control" name="titulo" required placeholder="Ex.: Introdução às frações" value="{{ plano.titulo if plano else '' }}" />
+<div style="max-width:820px;">
+<form method="POST" id="planoForm">
+
+  <!-- Card principal -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header"><span class="card-title">Informações do Plano</span></div>
+    <div class="card-body">
+      <div class="form-group"><label class="form-label">Título *</label>
+        <input class="form-control" name="titulo" required placeholder="Ex.: Introdução às frações"
+               value="{{ plano.titulo if plano else '' }}" />
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Turma</label>
+          <select class="form-control" name="turma_id" id="turmaSelect" onchange="carregarAlunos()">
+            <option value="">— Selecionar —</option>
+            {% for t in turmas %}
+            <option value="{{ t.id }}" {% if plano and plano.turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="form-row form-row-2">
-          <div class="form-group"><label class="form-label">Turma</label>
-            <select class="form-control" name="turma_id">
-              <option value="">— Selecionar —</option>
-              {% for t in turmas %}<option value="{{ t.id }}" {% if plano and plano.turma_id==t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="form-group"><label class="form-label">Data da Aula *</label>
-            <input class="form-control" type="date" name="data_aula" required value="{{ plano.data_aula.isoformat() if plano else data_aula_pre|default('') }}" />
-          </div>
+        <div class="form-group"><label class="form-label">Data da Aula *</label>
+          <input class="form-control" type="date" name="data_aula" required
+                 value="{{ plano.data_aula.isoformat() if plano else data_aula_pre|default('') }}" />
         </div>
-        <div class="form-row form-row-2">
-          <div class="form-group"><label class="form-label">Bimestre</label>
-            <select class="form-control" name="bimestre">
-              <option value="">—</option>
-              {% for b in [1,2,3,4] %}<option value="{{ b }}" {% if plano and plano.bimestre==b %}selected{% endif %}>{{ b }}º Bimestre</option>{% endfor %}
-            </select>
-          </div>
-          <div class="form-group"><label class="form-label">Semestre</label>
-            <select class="form-control" name="semestre">
-              <option value="">—</option>
-              <option value="1" {% if plano and plano.semestre==1 %}selected{% endif %}>1º Semestre</option>
-              <option value="2" {% if plano and plano.semestre==2 %}selected{% endif %}>2º Semestre</option>
-            </select>
-          </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Bimestre</label>
+          <select class="form-control" name="bimestre">
+            <option value="">—</option>
+            {% for b in [1,2,3,4] %}
+            <option value="{{ b }}" {% if plano and plano.bimestre==b %}selected{% endif %}>{{ b }}º Bimestre</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="form-group"><label class="form-label">Conteúdo / Objeto de Ensino</label>
-          <textarea class="form-control" name="conteudo" rows="3" placeholder="Descreva o conteúdo a ser ensinado...">{{ plano.conteudo if plano else '' }}</textarea>
+        <div class="form-group"><label class="form-label">Semestre</label>
+          <select class="form-control" name="semestre">
+            <option value="">—</option>
+            <option value="1" {% if plano and plano.semestre==1 %}selected{% endif %}>1º Semestre</option>
+            <option value="2" {% if plano and plano.semestre==2 %}selected{% endif %}>2º Semestre</option>
+          </select>
         </div>
-        <div class="form-group"><label class="form-label">Objetivos</label>
-          <textarea class="form-control" name="objetivos" rows="3" placeholder="O que os alunos deverão aprender...">{{ plano.objetivos if plano else '' }}</textarea>
+      </div>
+      <div class="form-group"><label class="form-label">Conteúdo / Objeto de Ensino</label>
+        <textarea class="form-control" name="conteudo" rows="3"
+                  placeholder="Descreva o conteúdo a ser ensinado...">{{ plano.conteudo if plano else '' }}</textarea>
+      </div>
+      <div class="form-group"><label class="form-label">Objetivos</label>
+        <textarea class="form-control" name="objetivos" rows="3"
+                  placeholder="O que os alunos deverão aprender...">{{ plano.objetivos if plano else '' }}</textarea>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label class="form-label">Metodologia</label>
+          <textarea class="form-control" name="metodologia" rows="3"
+                    placeholder="Como será ensinado...">{{ plano.metodologia if plano else '' }}</textarea>
         </div>
-        <div class="form-row form-row-2">
-          <div class="form-group"><label class="form-label">Metodologia</label>
-            <textarea class="form-control" name="metodologia" rows="3" placeholder="Como será ensinado...">{{ plano.metodologia if plano else '' }}</textarea>
+        <div class="form-group"><label class="form-label">Recursos Necessários</label>
+          <textarea class="form-control" name="recursos" rows="3"
+                    placeholder="Materiais, tecnologias...">{{ plano.recursos if plano else '' }}</textarea>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Avaliação da Aprendizagem</label>
+        <textarea class="form-control" name="avaliacao_descricao" rows="2"
+                  placeholder="Como será avaliado o aprendizado...">{{ plano.avaliacao_descricao if plano else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quadro de Atividades Individualizadas -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div class="section-header" style="margin:0;">
+        <div class="section-icon" style="background:var(--amber-100);">🎯</div>
+        <div>
+          <div class="card-title">Atividades Individualizadas</div>
+          <div style="font-size:.78rem;color:var(--neutral-500);font-weight:400;margin-top:1px;">
+            Conteúdo específico para aluno(s) com necessidades diferenciadas
           </div>
-          <div class="form-group"><label class="form-label">Recursos Necessários</label>
-            <textarea class="form-control" name="recursos" rows="3" placeholder="Materiais, tecnologias...">{{ plano.recursos if plano else '' }}</textarea>
-          </div>
-        </div>
-        <div class="form-group"><label class="form-label">Avaliação da Aprendizagem</label>
-          <textarea class="form-control" name="avaliacao_descricao" rows="2" placeholder="Como será avaliado o aprendizado...">{{ plano.avaliacao_descricao if plano else '' }}</textarea>
         </div>
       </div>
     </div>
-    <div class="form-actions" style="margin-top:16px;border:none;">
-      <button type="submit" class="btn btn-primary">{% if plano %}Salvar Alterações{% else %}Criar Plano{% endif %}</button>
-      <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline">Cancelar</a>
+    <div class="card-body">
+
+      <div id="sem-turma-aviso" style="{% if plano and plano.turma_id %}display:none;{% endif %}background:var(--neutral-50);border-radius:8px;padding:14px;font-size:.8125rem;color:var(--neutral-500);text-align:center;">
+        Selecione uma turma acima para adicionar atividades individualizadas.
+      </div>
+
+      <div id="ativ-container">
+        <!-- Atividades carregadas dinamicamente -->
+      </div>
+
+      <button type="button" class="add-ativ-btn" id="btnAddAtiv" onclick="adicionarAtividade()"
+              style="{% if not plano or not plano.turma_id %}display:none;{% endif %}">
+        <span style="font-size:1.1rem;">+</span> Adicionar Atividade Individualizada
+      </button>
+
     </div>
-  </form>
+  </div>
+
+  <div class="form-actions" style="margin-top:16px;border:none;">
+    <button type="submit" class="btn btn-primary">
+      {% if plano %}Salvar Alterações{% else %}Criar Plano{% endif %}
+    </button>
+    <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline">Cancelar</a>
+  </div>
+
+</form>
 </div>
+
+<!-- Dados dos alunos por turma (para JS) -->
+<script>
+const TURMAS_ALUNOS = {
+  {% for t in turmas %}
+  "{{ t.id }}": [{% for a in t.alunos|sort(attribute='nome') %}{"id":{{ a.id }},"nome":"{{ a.nome }}"}{% if not loop.last %},{% endif %}{% endfor %}],
+  {% endfor %}
+};
+
+// Atividades já salvas (edição)
+const ATIVIDADES_SALVAS = {{ atividades_json|tojson }};
+
+let atividadeIdx = 0;
+let alunosAtivos = [];
+
+function carregarAlunos() {
+  const turmaId = document.getElementById('turmaSelect').value;
+  alunosAtivos = turmaId ? (TURMAS_ALUNOS[turmaId] || []) : [];
+
+  const aviso   = document.getElementById('sem-turma-aviso');
+  const btn     = document.getElementById('btnAddAtiv');
+  const cont    = document.getElementById('ativ-container');
+
+  if (!turmaId || !alunosAtivos.length) {
+    aviso.style.display = 'block';
+    btn.style.display   = 'none';
+    cont.innerHTML      = '';
+    atividadeIdx = 0;
+    return;
+  }
+  aviso.style.display = 'none';
+  btn.style.display   = 'flex';
+
+  // Reconstruir atividades existentes com nova lista de alunos
+  const existentes = coletarAtividades();
+  cont.innerHTML = '';
+  atividadeIdx   = 0;
+  existentes.forEach(a => adicionarAtividade(a.descricao, a.alunos));
+}
+
+function adicionarAtividade(descricaoInit='', alunosSel=[]) {
+  if (!alunosAtivos.length) return;
+  const idx = atividadeIdx++;
+  const div = document.createElement('div');
+  div.className = 'ativ-card';
+  div.id = `ativ_${idx}`;
+
+  const chips = alunosAtivos.map(a => {
+    const sel = alunosSel.includes(a.id);
+    return `<label class="aluno-chip ${sel?'sel':''}" onclick="toggleAluno(this)">
+      <input type="checkbox" ${sel?'checked':''} value="${a.id}"/>
+      ${a.nome}
+    </label>`;
+  }).join('');
+
+  div.innerHTML = `
+    <button type="button" class="ativ-remove" onclick="removerAtividade('ativ_${idx}')" title="Remover">✕</button>
+    <div style="font-size:.75rem;font-weight:700;color:var(--neutral-400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">
+      Atividade ${idx+1}
+    </div>
+    <div class="form-group" style="margin-bottom:10px;">
+      <label class="form-label" style="font-size:.78rem;">Descrição da atividade *</label>
+      <textarea class="form-control ativ-desc" rows="2"
+                placeholder="Descreva a atividade específica para estes aluno(s)..."
+                style="font-size:.875rem;">${descricaoInit}</textarea>
+    </div>
+    <div>
+      <label class="form-label" style="font-size:.78rem;margin-bottom:6px;display:block;">
+        Aluno(s) — clique para selecionar <span style="color:var(--neutral-400);font-weight:400;">(pode selecionar vários)</span>
+      </label>
+      <div class="alunos-chips">${chips}</div>
+    </div>`;
+
+  document.getElementById('ativ-container').appendChild(div);
+}
+
+function toggleAluno(label) {
+  label.classList.toggle('sel');
+  label.querySelector('input').checked = label.classList.contains('sel');
+}
+
+function removerAtividade(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  // Renumerar títulos
+  document.querySelectorAll('.ativ-card').forEach((card, i) => {
+    const titulo = card.querySelector('div[style*="text-transform"]');
+    if (titulo) titulo.textContent = `Atividade ${i+1}`;
+  });
+}
+
+function coletarAtividades() {
+  const ativs = [];
+  document.querySelectorAll('.ativ-card').forEach(card => {
+    const desc    = card.querySelector('.ativ-desc')?.value.trim() || '';
+    const alunos  = [...card.querySelectorAll('.aluno-chip.sel input')].map(i => parseInt(i.value));
+    if (desc) ativs.push({descricao: desc, alunos});
+  });
+  return ativs;
+}
+
+// Antes de submeter, serializar atividades em campo hidden
+document.getElementById('planoForm').addEventListener('submit', function() {
+  const ativs = coletarAtividades();
+  let hidden   = document.getElementById('atividades_data');
+  if (!hidden) {
+    hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = 'atividades_data';
+    hidden.id   = 'atividades_data';
+    this.appendChild(hidden);
+  }
+  hidden.value = JSON.stringify(ativs);
+});
+
+// Inicializar
+window.addEventListener('DOMContentLoaded', () => {
+  const turmaId = document.getElementById('turmaSelect').value;
+  if (turmaId) {
+    alunosAtivos = TURMAS_ALUNOS[turmaId] || [];
+    document.getElementById('sem-turma-aviso').style.display = 'none';
+    document.getElementById('btnAddAtiv').style.display = 'flex';
+    // Carregar atividades salvas (modo edição)
+    ATIVIDADES_SALVAS.forEach(a => adicionarAtividade(a.descricao, a.alunos));
+  }
+});
+</script>
 {% endblock %}
