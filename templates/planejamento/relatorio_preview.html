@@ -1,106 +1,77 @@
 {% extends "base.html" %}
-{% block title %}Relatório de Planejamento — {{ label }}
-<script>
-function imprimirLista() {
-  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
-}
-function imprimirCalendario() {
-  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
-}
-// Auto-print se vier com ?print=1
-if (new URLSearchParams(window.location.search).get('print') === '1') {
-  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
-}
-</script>
-{% endblock %}
-{% block page_title %}Relatório de Planejamento
-<script>
-function imprimirLista() {
-  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
-}
-function imprimirCalendario() {
-  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
-}
-// Auto-print se vier com ?print=1
-if (new URLSearchParams(window.location.search).get('print') === '1') {
-  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
-}
-</script>
-{% endblock %}
+{% block title %}Relatório — {{ label }}{% endblock %}
+{% block page_title %}Relatório de Planejamento{% endblock %}
 {% block topbar_actions %}
-  <a href="?{{ request_qs }}&formato=lista" class="btn btn-outline btn-sm {% if formato=='lista' %}active{% endif %}">📋 Lista</a>
-  <a href="?{{ request_qs }}&formato=calendario" class="btn btn-outline btn-sm {% if formato=='calendario' %}active{% endif %}">📅 Calendário</a>
-  <button onclick="imprimirLista()" class="btn btn-outline btn-sm" title="Imprimir versão lista">🖨️ Lista</button>
-  <button onclick="imprimirCalendario()" class="btn btn-primary btn-sm" title="Imprimir versão calendário">🖨️ Calendário</button>
+  <button onclick="abrirImpressao()" class="btn btn-primary btn-sm">🖨️ Imprimir</button>
   <a href="{{ url_for('planejamento.index') }}" class="btn btn-outline btn-sm">← Voltar</a>
-
-<script>
-function imprimirLista() {
-  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
-}
-function imprimirCalendario() {
-  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
-}
-// Auto-print se vier com ?print=1
-if (new URLSearchParams(window.location.search).get('print') === '1') {
-  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
-}
-</script>
 {% endblock %}
 {% block extra_css %}
 <style>
-/* Lista */
+/* ── Abas de visão ── */
+.view-tabs{display:flex;gap:6px;margin-bottom:20px;}
+.view-tab{padding:7px 18px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8125rem;font-weight:700;cursor:pointer;background:white;color:var(--neutral-600);transition:all .15s;text-decoration:none;}
+.view-tab.active{background:var(--navy-700);color:white;border-color:var(--navy-700);}
+
+/* ── Lista ── */
 .plano-card{background:white;border:1px solid var(--neutral-200);border-radius:12px;margin-bottom:14px;overflow:hidden;}
-.plano-head{padding:12px 20px;background:var(--amber-50);border-bottom:1px solid var(--amber-100);display:flex;align-items:center;gap:12px;}
-.plano-titulo{font-weight:800;font-size:.9375rem;color:var(--navy-900);flex:1;}
+.plano-head{padding:12px 20px;background:var(--amber-50);border-bottom:1px solid var(--amber-100);display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.plano-titulo{font-weight:800;font-size:.9375rem;color:var(--navy-900);flex:1;min-width:0;word-break:break-word;}
 .plano-meta{font-size:.8rem;color:var(--neutral-500);margin-top:2px;}
 .plano-body{padding:14px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.plano-campo-label{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--neutral-400);letter-spacing:.04em;margin-bottom:3px;}
-.plano-campo-val{font-size:.8125rem;color:var(--navy-900);white-space:pre-wrap;line-height:1.5;}
+.campo-label{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--neutral-400);letter-spacing:.04em;margin-bottom:3px;}
+.campo-val{font-size:.8125rem;color:var(--navy-900);white-space:pre-wrap;line-height:1.5;word-break:break-word;}
 
-/* Calendário */
-.cal-print-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:10px;overflow:hidden;background:var(--neutral-200);gap:1px;margin-bottom:28px;}
-.cal-print-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:7px 4px;text-transform:uppercase;}
-.cal-print-cell{min-height:90px;background:white;padding:6px 8px;}
+/* ── Calendário ── */
+.cal-mes-bloco{margin-bottom:28px;}
+.cal-mes-titulo{font-size:.9rem;font-weight:800;color:var(--navy-900);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+.cal-print-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:10px;overflow:hidden;background:var(--neutral-200);gap:1px;}
+.cal-print-dow{background:var(--navy-900);color:white;font-size:.65rem;font-weight:700;text-align:center;padding:6px 2px;text-transform:uppercase;}
+.cal-print-cell{min-height:80px;background:white;padding:5px 6px;overflow:hidden;}
 .cal-print-cell.vazio{background:var(--neutral-50);}
 .cal-print-cell.fds{background:#f8f9fa;}
-.cal-print-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:4px;}
-.cal-print-cell.vazio .cal-print-dia,.cal-print-cell.fds .cal-print-dia{color:var(--neutral-300);}
-.cal-print-ev{font-size:.68rem;line-height:1.35;color:var(--navy-800);background:var(--amber-50);border-left:3px solid var(--amber-400);border-radius:0 4px 4px 0;padding:2px 5px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-mes-titulo{font-size:1rem;font-weight:800;color:var(--navy-900);text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px;}
+.cal-print-dia{font-size:.75rem;font-weight:800;color:var(--navy-700);margin-bottom:3px;}
+.cal-print-cell.vazio .cal-print-dia,.cal-print-cell.fds .cal-print-dia{color:var(--neutral-200);}
+.cal-print-ev{font-size:.62rem;line-height:1.3;background:var(--amber-50);border-left:2px solid var(--amber-400);padding:2px 4px;margin-bottom:2px;border-radius:0 3px 3px 0;overflow:hidden;word-break:break-word;white-space:normal;}
 
-/* Cabeçalho relatório */
-.rel-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px 20px;background:white;border-radius:12px;border:1px solid var(--neutral-200);}
+/* ── Cabeçalho do relatório ── */
+.rel-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:14px 20px;background:white;border-radius:12px;border:1px solid var(--neutral-200);}
 
+/* ── Modal impressão ── */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;}
+.mov.open{display:flex;}
+.mbox{background:white;border-radius:16px;width:min(420px,95vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;}
+.mhead{padding:18px 24px;border-bottom:1px solid var(--neutral-200);display:flex;align-items:center;justify-content:space-between;}
+.mbody{padding:20px 24px;display:grid;gap:10px;}
+.imp-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px solid var(--neutral-200);border-radius:10px;cursor:pointer;transition:all .15s;background:white;width:100%;text-align:left;}
+.imp-btn:hover{border-color:var(--navy-600);background:var(--navy-50);}
+.imp-btn-icon{font-size:1.4rem;width:36px;text-align:center;flex-shrink:0;}
+.imp-btn-label{font-weight:700;color:var(--navy-900);font-size:.9rem;}
+.imp-btn-sub{font-size:.75rem;color:var(--neutral-500);margin-top:1px;}
+
+/* ── Print ── */
 @media print {
-  .sidebar,.top-bar,.topbar-actions{display:none!important;}
+  .sidebar,.top-bar,.topbar-actions,.view-tabs,.rel-header,.mov{display:none!important;}
   .main-wrapper{margin-left:0!important;}
-  .content{padding:12px!important;}
-  .plano-card,.cal-print-grid{break-inside:avoid;page-break-inside:avoid;}
-  .cal-print-grid{margin-bottom:20px;}
-  body{font-size:10px;}
+  .content{padding:8px!important;}
+  .plano-card{break-inside:avoid;page-break-inside:avoid;margin-bottom:8px;}
+  .cal-mes-bloco{break-inside:avoid;page-break-inside:avoid;}
+  .cal-print-grid{gap:0;border-radius:0;}
+  .print-header{display:flex!important;}
+  body{font-size:9px;}
+  #secaoLista,#secaoCal{display:block!important;}
+  .cal-print-cell{min-height:70px;}
 }
-.btn.active{background:var(--navy-700)!important;color:white!important;border-color:var(--navy-700)!important;}
-</style>
 
-<script>
-function imprimirLista() {
-  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
-}
-function imprimirCalendario() {
-  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
-}
-// Auto-print se vier com ?print=1
-if (new URLSearchParams(window.location.search).get('print') === '1') {
-  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
-}
-</script>
+/* Print header (hidden on screen) */
+.print-header{display:none;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--navy-900);}
+</style>
 {% endblock %}
 
 {% block content %}
-<!-- Cabeçalho -->
+
+<!-- Cabeçalho visível na tela -->
 <div class="rel-header">
-  <img src="{{ url_for('static', filename='logo_df.png') }}" style="height:52px;width:auto;flex-shrink:0;" alt="DF"/>
+  <img src="{{ url_for('static', filename='logo_df.png') }}" style="height:48px;width:auto;flex-shrink:0;" alt="DF"/>
   <div style="flex:1;">
     <div style="font-weight:800;font-size:1rem;color:var(--navy-900);">{{ escola }}</div>
     <div style="font-size:.8rem;color:var(--neutral-500);">Prof(a): {{ prof_nome }}</div>
@@ -112,46 +83,75 @@ if (new URLSearchParams(window.location.search).get('print') === '1') {
   </div>
 </div>
 
+<!-- Abas de visão -->
+<div class="view-tabs">
+  <a href="?{{ request_qs }}&formato=lista"
+     class="view-tab {% if formato=='lista' %}active{% endif %}">📋 Lista</a>
+  <a href="?{{ request_qs }}&formato=calendario"
+     class="view-tab {% if formato=='calendario' %}active{% endif %}">📅 Calendário</a>
+  <a href="?{{ request_qs }}&formato=ambos"
+     class="view-tab {% if formato=='ambos' %}active{% endif %}">📋📅 Ambos</a>
+</div>
+
 {% if not planos %}
 <div class="card"><div class="empty-state" style="padding:48px;">Nenhum plano no período selecionado.</div></div>
 
-{% elif formato == 'calendario' %}
-<!-- ── VISÃO CALENDÁRIO ──────────────────────────────────────────────────── -->
+{% else %}
+
+<!-- Cabeçalho de impressão (só aparece no print) -->
+<div class="print-header" id="printHeader">
+  <img src="{{ url_for('static', filename='logo_df.png') }}" style="height:44px;width:auto;" alt="DF"/>
+  <div style="flex:1;">
+    <div style="font-weight:800;font-size:1rem;">{{ escola }}</div>
+    <div style="font-size:.8rem;color:#666;">Prof(a): {{ prof_nome }} · {{ label }} · {{ turma_nome }}</div>
+  </div>
+</div>
+
+<!-- SEÇÃO CALENDÁRIO -->
+{% if formato in ['calendario','ambos'] %}
+<div id="secaoCal">
 {% for mes_c, ano_c in meses %}
   {% set nome_mes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes_c] %}
-  <div class="cal-mes-titulo">{{ nome_mes }} {{ ano_c }}</div>
-  <div class="cal-print-grid">
-    {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
-    <div class="cal-print-dow">{{ d }}</div>
-    {% endfor %}
-
-    {% set semanas = meses_semanas[(mes_c, ano_c)] %}
-    {% for semana in semanas %}
-      {% for dia in semana %}
-        {% if dia == 0 %}
-        <div class="cal-print-cell vazio"></div>
-        {% else %}
-          {% set dow = loop.index0 %}
-          {% set dstr = '%04d-%02d-%02d'|format(ano_c, mes_c, dia) %}
-          {% set ps = planos_por_data.get(dstr, []) %}
-          <div class="cal-print-cell {% if dow >= 5 %}fds{% endif %}">
-            <div class="cal-print-dia">{{ dia }}</div>
-            {% for p in ps %}
-            <div class="cal-print-ev" title="{{ p.titulo }}">{{ p.titulo[:38] }}{% if p.titulo|length > 38 %}…{% endif %}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
+  <div class="cal-mes-bloco">
+    <div class="cal-mes-titulo">{{ nome_mes }} {{ ano_c }}</div>
+    <div class="cal-print-grid">
+      {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+      <div class="cal-print-dow">{{ d }}</div>
       {% endfor %}
-    {% endfor %}
+      {% set semanas = meses_semanas[(mes_c, ano_c)] %}
+      {% for semana in semanas %}
+        {% for dia in semana %}
+          {% if dia == 0 %}
+          <div class="cal-print-cell vazio"><div class="cal-print-dia"> </div></div>
+          {% else %}
+            {% set dow = loop.index0 %}
+            {% set dstr = '%04d-%02d-%02d'|format(ano_c, mes_c, dia) %}
+            {% set ps = planos_por_data.get(dstr, []) %}
+            <div class="cal-print-cell {% if dow >= 5 %}fds{% endif %}">
+              <div class="cal-print-dia">{{ dia }}</div>
+              {% for p in ps %}
+              <div class="cal-print-ev" title="{{ p.titulo }}">{{ p.titulo }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </div>
   </div>
 {% endfor %}
+</div>
+{% endif %}
 
-{% else %}
-<!-- ── VISÃO LISTA ───────────────────────────────────────────────────────── -->
+<!-- SEÇÃO LISTA -->
+{% if formato in ['lista','ambos'] %}
+<div id="secaoLista">
+{% if formato == 'ambos' %}
+<div style="font-weight:800;font-size:1rem;color:var(--navy-900);margin:20px 0 14px;padding-top:4px;border-top:2px solid var(--neutral-100);">Lista de Planejamentos</div>
+{% endif %}
 {% for p in planos %}
 <div class="plano-card">
   <div class="plano-head">
-    <div style="flex:1;">
+    <div style="flex:1;min-width:0;">
       <div class="plano-titulo">{{ p.titulo }}</div>
       <div class="plano-meta">
         📅 {{ p.data_aula.strftime('%d/%m/%Y') }}
@@ -171,8 +171,8 @@ if (new URLSearchParams(window.location.search).get('print') === '1') {
     ] %}
     {% if valor %}
     <div {% if full %}style="grid-column:span 2"{% endif %}>
-      <div class="plano-campo-label">{{ campo }}</div>
-      <div class="plano-campo-val">{{ valor }}</div>
+      <div class="campo-label">{{ campo }}</div>
+      <div class="campo-val">{{ valor }}</div>
     </div>
     {% endif %}
     {% endfor %}
@@ -180,18 +180,54 @@ if (new URLSearchParams(window.location.search).get('print') === '1') {
   {% endif %}
 </div>
 {% endfor %}
+</div>
 {% endif %}
 
+{% endif %}
+
+<!-- Modal impressão -->
+<div class="mov" id="modalImp">
+  <div class="mbox">
+    <div class="mhead">
+      <h3 style="font-weight:800;font-size:1rem;color:var(--navy-900);">🖨️ O que deseja imprimir?</h3>
+      <button onclick="fecharModal()" style="font-size:1.3rem;color:var(--neutral-400);background:none;border:none;cursor:pointer;">✕</button>
+    </div>
+    <div class="mbody">
+      <button class="imp-btn" onclick="imprimirSo('calendario')">
+        <div class="imp-btn-icon">📅</div>
+        <div><div class="imp-btn-label">Somente Calendário</div><div class="imp-btn-sub">Grade mensal com os planos</div></div>
+      </button>
+      <button class="imp-btn" onclick="imprimirSo('lista')">
+        <div class="imp-btn-icon">📋</div>
+        <div><div class="imp-btn-label">Somente Lista</div><div class="imp-btn-sub">Planos detalhados em sequência</div></div>
+      </button>
+      <button class="imp-btn" onclick="imprimirSo('ambos')">
+        <div class="imp-btn-icon">📋📅</div>
+        <div><div class="imp-btn-label">Calendário + Lista</div><div class="imp-btn-sub">Documento completo</div></div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
-function imprimirLista() {
-  window.location.href = '?{{ request_qs }}&formato=lista&print=1';
+const QS = "{{ request_qs }}";
+
+function abrirImpressao() { document.getElementById('modalImp').classList.add('open'); }
+function fecharModal()    { document.getElementById('modalImp').classList.remove('open'); }
+
+function imprimirSo(fmt) {
+  fecharModal();
+  // Navega para o formato correto com ?print=1
+  window.location.href = `?${QS}&formato=${fmt}&print=1`;
 }
-function imprimirCalendario() {
-  window.location.href = '?{{ request_qs }}&formato=calendario&print=1';
-}
+
 // Auto-print se vier com ?print=1
 if (new URLSearchParams(window.location.search).get('print') === '1') {
-  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+  window.addEventListener('load', () => setTimeout(() => window.print(), 500));
 }
+
+document.getElementById('modalImp').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalImp')) fecharModal();
+});
 </script>
 {% endblock %}
