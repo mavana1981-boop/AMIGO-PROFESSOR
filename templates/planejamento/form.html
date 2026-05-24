@@ -174,9 +174,7 @@ function adicionarAtividade(descricaoInit='', alunosSel=[]) {
 
   const chips = alunosAtivos.map(a => {
     const sel = alunosSel.includes(a.id);
-    return `<div class="aluno-chip ${sel?'sel':''}" data-id="${a.id}" onclick="toggleAluno(this)">
-      ${a.nome}
-    </div>`;
+    return `<div class="aluno-chip ${sel?'sel':''}" data-id="${a.id}">${a.nome}</div>`;
   }).join('');
 
   div.innerHTML = `
@@ -203,6 +201,15 @@ function adicionarAtividade(descricaoInit='', alunosSel=[]) {
 function toggleAluno(el) {
   el.classList.toggle('sel');
 }
+
+// Delegação de eventos — funciona mesmo com elementos criados dinamicamente
+document.getElementById('ativ-container').addEventListener('click', function(e) {
+  const chip = e.target.closest('.aluno-chip');
+  if (chip) {
+    chip.classList.toggle('sel');
+    e.stopPropagation();
+  }
+});
 
 function removerAtividade(id) {
   const el = document.getElementById(id);
