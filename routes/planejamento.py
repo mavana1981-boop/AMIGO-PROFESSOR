@@ -755,9 +755,10 @@ def relatorio_preview():
         k = p.data_aula.strftime("%Y-%m-%d")
         planos_por_data.setdefault(k, []).append(p)
 
-    # Montar query string sem formato para alternância lista/calendário
+    # Query string sem formato e sem print para links de alternância
     args = request.args.to_dict()
     args.pop("formato", None)
+    args.pop("print",   None)
     from urllib.parse import urlencode
     request_qs = urlencode(args)
 
