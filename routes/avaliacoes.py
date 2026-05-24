@@ -131,9 +131,35 @@ def relatorio_preview():
             q = q.filter_by(turma_id=turma_id)
         avaliacoes.extend(q.order_by(Avaliacao.data_aplicacao).all())
 
+    formato = request.args.get("formato", "lista")
+
+    # Dados para visão calendário
+    meses_cal = []; meses_semanas = {}; itens_por_data = {}
+    for (di, df) in datas:
+        m, a = di.month, di.year
+        while (a, m) <= (df.year, df.month):
+            if (m, a) not in meses_cal:
+                meses_cal.append((m, a))
+                import calendar as cal_mod2
+                c2 = cal_mod2.Calendar(firstweekday=0)
+                meses_semanas[(m, a)] = c2.monthdayscalendar(a, m)
+            if m == 12: m, a = 1, a+1
+            else: m += 1
+    for av in avaliacoes:
+        if av.data_aplicacao:
+            k = av.data_aplicacao.strftime("%Y-%m-%d")
+            itens_por_data.setdefault(k, []).append(av.titulo)
+
+    args = request.args.to_dict()
+    args.pop("formato", None); args.pop("print", None)
+    from urllib.parse import urlencode
+    request_qs = urlencode(args)
+
     return render_template("avaliacoes/relatorio_preview.html",
         avaliacoes=avaliacoes, label=label, turma_nome=t_nome,
-        prof_nome=current_user.nome, escola=current_user.escola or "")
+        prof_nome=current_user.nome, escola=current_user.escola or "",
+        formato=formato, meses=meses_cal, meses_semanas=meses_semanas,
+        itens_por_data=itens_por_data, request_qs=request_qs)
 
 
 @aval_bp.route("/excluir/<int:id>", methods=["POST"])
