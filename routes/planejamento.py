@@ -800,10 +800,32 @@ def relatorio_preview():
     from urllib.parse import urlencode
     request_qs = urlencode(args)
 
+    # Carregar atividades individualizadas por plano
+    import json as _json
+    from models.models import AtividadeIndividualizada, Aluno
+    atividades_por_plano = {}
+    for p in planos:
+        ativs = AtividadeIndividualizada.query.filter_by(plano_id=p.id).all()
+        if ativs:
+            lista = []
+            for a in ativs:
+                try:
+                    alunos_ids = _json.loads(a.alunos_ids or "[]")
+                except Exception:
+                    alunos_ids = []
+                nomes = []
+                for aid in alunos_ids:
+                    al = Aluno.query.get(aid)
+                    if al:
+                        nomes.append(al.nome)
+                lista.append({"descricao": a.descricao, "alunos": nomes})
+            atividades_por_plano[p.id] = lista
+
     return render_template("planejamento/relatorio_preview.html",
         planos=planos, label=label, turma_nome=t_nome,
         prof_nome=current_user.nome, escola=current_user.escola or "",
         formato=formato, meses=meses_cal,
         meses_semanas=meses_semanas, planos_por_data=planos_por_data,
+        atividades_por_plano=atividades_por_plano,
         request_qs=request_qs,
     )
