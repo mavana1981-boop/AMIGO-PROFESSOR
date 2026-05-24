@@ -562,6 +562,41 @@ def api_mes():
             "aluno_nome": f.aluno.nome,
             "status":     f.status,
         })
+
+    # Incluir eventos do calendário (feriados, recessos, etc.) no retorno
+    from models.models import EventoCalendario
+    from calendar import monthrange
+    from datetime import timedelta
+    ultimo = monthrange(ano, mes)[1]
+    di = date(ano, mes, 1)
+    df = date(ano, mes, ultimo)
+    evs = EventoCalendario.query.filter(
+        EventoCalendario.professor_id == current_user.id,
+        EventoCalendario.data_inicio  <= df,
+        db.or_(
+            EventoCalendario.data_fim >= di,
+            EventoCalendario.data_fim.is_(None),
+        )
+    ).all()
+
+    for ev in evs:
+        d     = ev.data_inicio
+        fim   = ev.data_fim or ev.data_inicio
+        while d <= fim:
+            if d.month == mes and d.year == ano:
+                k = d.strftime("%Y-%m-%d")
+                if "_eventos" not in resultado:
+                    resultado["_eventos"] = {}
+                if k not in resultado["_eventos"]:
+                    resultado["_eventos"][k] = []
+                resultado["_eventos"][k].append({
+                    "id":    ev.id,
+                    "titulo":ev.titulo,
+                    "tipo":  ev.tipo or "outro",
+                    "cor":   ev.cor or "#6b7280",
+                })
+            d += timedelta(days=1)
+
     return jsonify(resultado)
 
 
