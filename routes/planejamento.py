@@ -50,6 +50,39 @@ def periodo_label(filtro, ano, mes, bimestre, semestre):
     return f"Ano {ano}"
 
 
+
+
+def _salvar_atividades(plano_id, json_str):
+    import json as _json
+    AtividadeIndividualizada.query.filter_by(plano_id=plano_id).delete()
+    db.session.flush()
+    try:
+        atividades = _json.loads(json_str or "[]")
+    except Exception:
+        atividades = []
+    for a in atividades:
+        if a.get("descricao", "").strip():
+            db.session.add(AtividadeIndividualizada(
+                plano_id   = plano_id,
+                descricao  = a["descricao"].strip(),
+                alunos_ids = _json.dumps(a.get("alunos", [])),
+            ))
+    db.session.commit()
+
+
+def _carregar_atividades_json(plano_id):
+    import json as _json
+    ativs = AtividadeIndividualizada.query.filter_by(plano_id=plano_id).all()
+    result = []
+    for a in ativs:
+        try:
+            alunos = _json.loads(a.alunos_ids or "[]")
+        except Exception:
+            alunos = []
+        result.append({"descricao": a.descricao, "alunos": alunos})
+    return result
+
+
 @plan_bp.route("/")
 @login_required
 def index():
