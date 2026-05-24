@@ -8,7 +8,7 @@
 .ativ-remove{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--rose-400);font-size:1.1rem;cursor:pointer;padding:2px 6px;border-radius:6px;}
 .ativ-remove:hover{background:var(--rose-50);color:var(--rose-600);}
 .alunos-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-.aluno-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;background:white;color:var(--neutral-600);user-select:none;}
+.aluno-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1.5px solid var(--neutral-200);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;background:white;color:var(--neutral-600);user-select:none;-webkit-user-select:none;}
 .aluno-chip.sel{background:var(--navy-700);color:white;border-color:var(--navy-700);}
 .aluno-chip input[type=checkbox]{display:none;}
 .add-ativ-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px dashed var(--neutral-300);border-radius:10px;font-size:.875rem;font-weight:600;color:var(--neutral-500);cursor:pointer;background:none;width:100%;transition:all .15s;margin-top:4px;}
@@ -174,10 +174,9 @@ function adicionarAtividade(descricaoInit='', alunosSel=[]) {
 
   const chips = alunosAtivos.map(a => {
     const sel = alunosSel.includes(a.id);
-    return `<label class="aluno-chip ${sel?'sel':''}" onclick="toggleAluno(this)">
-      <input type="checkbox" ${sel?'checked':''} value="${a.id}"/>
+    return `<div class="aluno-chip ${sel?'sel':''}" data-id="${a.id}" onclick="toggleAluno(this)">
       ${a.nome}
-    </label>`;
+    </div>`;
   }).join('');
 
   div.innerHTML = `
@@ -201,9 +200,8 @@ function adicionarAtividade(descricaoInit='', alunosSel=[]) {
   document.getElementById('ativ-container').appendChild(div);
 }
 
-function toggleAluno(label) {
-  label.classList.toggle('sel');
-  label.querySelector('input').checked = label.classList.contains('sel');
+function toggleAluno(el) {
+  el.classList.toggle('sel');
 }
 
 function removerAtividade(id) {
@@ -220,7 +218,7 @@ function coletarAtividades() {
   const ativs = [];
   document.querySelectorAll('.ativ-card').forEach(card => {
     const desc    = card.querySelector('.ativ-desc')?.value.trim() || '';
-    const alunos  = [...card.querySelectorAll('.aluno-chip.sel input')].map(i => parseInt(i.value));
+    const alunos  = [...card.querySelectorAll('.aluno-chip.sel')].map(d => parseInt(d.dataset.id));
     if (desc) ativs.push({descricao: desc, alunos});
   });
   return ativs;
