@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from routes.pdf_header import cabecalho_pdf
 from app import db
-from models.models import PlanoAula, Turma
+from models.models import PlanoAula, Turma, AtividadeIndividualizada
 from datetime import date, datetime, timedelta
 import io
 
@@ -70,7 +70,7 @@ def novo():
             data_aula = datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date()
         except (ValueError, KeyError):
             flash("Data da aula inválida.", "danger")
-            return render_template("planejamento/form.html", turmas=turmas, plano=None, data_aula_pre=data_aula_pre)
+            return render_template("planejamento/form.html", turmas=turmas, plano=None, data_aula_pre=data_aula_pre, atividades_json=[])
         plano = PlanoAula(
             titulo=request.form.get("titulo", "").strip() or "Sem título",
             data_aula=data_aula,
@@ -86,9 +86,11 @@ def novo():
         )
         db.session.add(plano)
         db.session.commit()
+        # Salvar atividades individualizadas
+        _salvar_atividades(plano.id, request.form.get("atividades_data", "[]"))
         flash("Plano criado!", "success")
         return redirect(url_for("planejamento.index"))
-    return render_template("planejamento/form.html", turmas=turmas, plano=None, data_aula_pre=data_aula_pre)
+    return render_template("planejamento/form.html", turmas=turmas, plano=None, data_aula_pre=data_aula_pre, atividades_json=[])
 
 
 @plan_bp.route("/editar/<int:id>", methods=["GET", "POST"])
@@ -102,7 +104,7 @@ def editar(id):
             plano.data_aula = datetime.strptime(request.form["data_aula"], "%Y-%m-%d").date()
         except (ValueError, KeyError):
             flash("Data da aula inválida.", "danger")
-            return render_template("planejamento/form.html", turmas=turmas, plano=plano)
+            return render_template("planejamento/form.html", turmas=turmas, plano=plano, atividades_json=[])
         plano.bimestre  = request.form.get("bimestre", type=int)
         plano.semestre  = request.form.get("semestre", type=int)
         plano.conteudo  = request.form.get("conteudo")
@@ -112,9 +114,12 @@ def editar(id):
         plano.avaliacao_descricao = request.form.get("avaliacao_descricao")
         plano.turma_id  = request.form.get("turma_id", type=int) or None
         db.session.commit()
+        _salvar_atividades(plano.id, request.form.get("atividades_data", "[]"))
         flash("Plano atualizado!", "success")
         return redirect(url_for("planejamento.index"))
-    return render_template("planejamento/form.html", turmas=turmas, plano=plano)
+    atividades_json = _carregar_atividades_json(plano.id)
+    return render_template("planejamento/form.html", turmas=turmas, plano=plano,
+                           atividades_json=atividades_json)
 
 
 @plan_bp.route("/excluir/<int:id>", methods=["POST"])
