@@ -21,13 +21,13 @@
 
 /* ── Grid ── */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--neutral-200);border-radius:12px;overflow:hidden;background:var(--neutral-200);gap:1px;}
-.cal-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:8px 4px;text-transform:uppercase;letter-spacing:.05em;}
-.cal-cell{min-height:110px;background:white;padding:7px 8px;position:relative;transition:background .1s;cursor:default;}
+.cal-dow{background:var(--navy-900);color:white;font-size:.7rem;font-weight:700;text-align:center;padding:8px 4px;text-transform:uppercase;letter-spacing:.05em;height:32px!important;box-sizing:border-box;}
+.cal-cell{background:white;padding:6px 7px;position:relative;transition:background .1s;cursor:default;overflow:hidden;}
 .cal-cell:hover{background:var(--navy-50);}
 .cal-cell.vazio{background:var(--neutral-50);cursor:default;}
 .cal-cell.fds{background:#f8f9fa;}
 .cal-cell.hoje-cell{background:var(--navy-50);}
-.cal-cell.hoje-cell .cal-dia{background:var(--navy-700);color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.cal-cell.hoje-cell .cal-dia{background:var(--navy-700);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
 .cal-dia{font-size:.8rem;font-weight:800;color:var(--navy-700);margin-bottom:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
 .cal-cell.vazio .cal-dia,.cal-cell.fds .cal-dia{color:var(--neutral-300);}
 .cal-event{font-size:.7rem;line-height:1.4;color:var(--navy-800);background:var(--amber-50);border-left:3px solid var(--amber-400);border-radius:0 5px 5px 0;padding:3px 6px;margin-bottom:3px;cursor:pointer;transition:background .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -231,11 +231,29 @@ function renderizarCalendario(ano, mes) {
   }
 
   // Completar última semana
-  const total   = inicio + diasNoMes;
+  const total    = inicio + diasNoMes;
   const restante = (7 - (total % 7)) % 7;
   for (let i = 0; i < restante; i++) {
     grid.insertAdjacentHTML('beforeend', '<div class="cal-cell vazio"></div>');
   }
+
+  // Ajustar altura para caber na viewport
+  ajustarAltura();
+}
+
+function ajustarAltura() {
+  const grid = document.getElementById('calGrid');
+  if (!grid) return;
+  // Conta linhas de dias (exclui os 7 headers DOW)
+  const totalCelulas = grid.children.length - 7;
+  const nLinhas      = Math.ceil(totalCelulas / 7);
+  if (nLinhas === 0) return;
+  // Altura disponível: viewport menos topbar (~60px) nav (~60px) e margens (~40px)
+  const altDisp  = window.innerHeight - 165;
+  const altGrade = Math.max(altDisp, nLinhas * 80); // mínimo 80px por linha
+  const altLinha = Math.floor((altGrade - 34) / nLinhas);
+  grid.style.gridTemplateRows = `34px repeat(${nLinhas}, ${altLinha}px)`;
+  grid.style.height = altGrade + 'px';
 }
 
 // ── Navegação ─────────────────────────────────────────────────────────────────
@@ -318,5 +336,6 @@ document.querySelectorAll('.mov').forEach(m => m.addEventListener('click', e => 
 
 // Init
 carregarPlanos(anoAtual, mesAtual);
+window.addEventListener('resize', ajustarAltura);
 </script>
 {% endblock %}
