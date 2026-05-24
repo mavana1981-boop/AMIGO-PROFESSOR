@@ -210,15 +210,16 @@
 </div>
 
 <script>
-const QS = "{{ request_qs }}";
-
 function abrirImpressao() { document.getElementById('modalImp').classList.add('open'); }
 function fecharModal()    { document.getElementById('modalImp').classList.remove('open'); }
 
 function imprimirSo(fmt) {
   fecharModal();
-  // Navega para o formato correto com ?print=1
-  window.location.href = `?${QS}&formato=${fmt}&print=1`;
+  // Usa os params ATUAIS da URL, só substitui formato e adiciona print=1
+  const params = new URLSearchParams(window.location.search);
+  params.set('formato', fmt);
+  params.set('print', '1');
+  window.location.href = '?' + params.toString();
 }
 
 // Auto-print se vier com ?print=1
